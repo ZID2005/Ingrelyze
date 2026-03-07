@@ -1,0 +1,196 @@
+
+> frontend@0.0.0 lint
+> eslint .
+
+
+D:\Ingrelyze\frontend\src\components\AuthLayout.jsx
+  3:10  error  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+D:\Ingrelyze\frontend\src\components\BlurText.jsx
+  6:10  error  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+D:\Ingrelyze\frontend\src\components\GradientText.jsx
+  2:10  error  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+D:\Ingrelyze\frontend\src\components\LightPillar.jsx
+  35:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  33 |         const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+  34 |         if (!gl) {
+> 35 |             setWebGLSupported(false);
+     |             ^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  36 |         }
+  37 |     }, []);
+  38 |  react-hooks/set-state-in-effect
+  82:18  error  'error' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              no-unused-vars
+  83:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  81 |             });
+  82 |         } catch (error) {
+> 83 |             setWebGLSupported(false);
+     |             ^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  84 |             return;
+  85 |         }
+  86 |                                                             react-hooks/set-state-in-effect
+
+D:\Ingrelyze\frontend\src\components\PillNav.jsx
+  336:47  error  'e' is defined but never used  no-unused-vars
+
+D:\Ingrelyze\frontend\src\components\ShinyText.jsx
+  2:10  error  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+D:\Ingrelyze\frontend\src\components\SplitText.jsx
+   37:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  35 |     useEffect(() => {
+  36 |         if (document.fonts.status === 'loaded') {
+> 37 |             setFontsLoaded(true);
+     |             ^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  38 |         } else {
+  39 |             document.fonts.ready.then(() => {
+  40 |                 setFontsLoaded(true);  react-hooks/set-state-in-effect
+   55:26  error  '_' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     no-unused-vars
+  126:26  error  '_' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     no-unused-vars
+
+D:\Ingrelyze\frontend\src\components\StaggeredMenu.jsx
+  38:11  error  'spinTweenRef' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+D:\Ingrelyze\frontend\src\components\WelcomeScreen.jsx
+   3:10  error  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       no-unused-vars
+  14:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  12 |             const extractedName = email.split('@')[0].split('.')[0]; // Handle dots too
+  13 |             const formattedName = extractedName.charAt(0).toUpperCase() + extractedName.slice(1);
+> 14 |             setName(formattedName);
+     |             ^^^^^^^ Avoid calling setState() directly within an effect
+  15 |         }
+  16 |
+  17 |         // Determine greeting based on time of day (24h format)  react-hooks/set-state-in-effect
+
+D:\Ingrelyze\frontend\src\contexts\AuthContext.jsx
+  14:17  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+D:\Ingrelyze\frontend\src\pages\Dashboard.jsx
+    5:66  error    'orderBy' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                     no-unused-vars
+    5:75  error    'limit' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                       no-unused-vars
+   12:17  error    Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components                                     react-refresh/only-export-components
+  260:8   warning  React Hook useEffect has missing dependencies: 'fetchRecentFoods', 'fetchTodayTotal', and 'fetchWeeklyTotals'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  270:22  error    'err' is defined but never used                                                                                                                                    no-unused-vars
+  345:14  error    'handleChange' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                no-unused-vars
+  345:27  error    'e' is defined but never used                                                                                                                                      no-unused-vars
+  382:18  error    'err' is defined but never used                                                                                                                                    no-unused-vars
+  503:11  error    'showSearch' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                                         no-unused-vars
+  504:11  error    'isShowingResult' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                                    no-unused-vars
+  507:11  error    'healthImpactLists' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                                  no-unused-vars
+  584:13  error    'weightImpact' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                                       no-unused-vars
+  584:27  error    'recommendations' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                                    no-unused-vars
+  665:15  error    'nCarbs' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                                             no-unused-vars
+  668:15  error    'nChol' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                                              no-unused-vars
+
+D:\Ingrelyze\frontend\src\pages\HealthContext.jsx
+  6:10  error  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+D:\Ingrelyze\frontend\src\pages\Login.jsx
+   8:8   error  'logo' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        no-unused-vars
+  67:24  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+  65 |         return (
+  66 |             <WelcomeScreen
+> 67 |                 email={currentUser?.email || emailRef.current?.value || "User"}
+     |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot access ref value during render
+  68 |                 onComplete={() => navigate("/")}
+  69 |             />
+  70 |         );            react-hooks/refs
+  67:24  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+  65 |         return (
+  66 |             <WelcomeScreen
+> 67 |                 email={currentUser?.email || emailRef.current?.value || "User"}
+     |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot access ref value during render
+  68 |                 onComplete={() => navigate("/")}
+  69 |             />
+  70 |         );  react-hooks/refs
+  67:46  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+  65 |         return (
+  66 |             <WelcomeScreen
+> 67 |                 email={currentUser?.email || emailRef.current?.value || "User"}
+     |                                              ^^^^^^^^^^^^^^^^ Cannot access ref value during render
+  68 |                 onComplete={() => navigate("/")}
+  69 |             />
+  70 |         );                   react-hooks/refs
+
+D:\Ingrelyze\frontend\src\pages\Profile.jsx
+  6:10  error  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+D:\Ingrelyze\frontend\src\pages\Signup.jsx
+   5:8   error  'logo' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      no-unused-vars
+  65:24  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+  63 |         return (
+  64 |             <WelcomeScreen
+> 65 |                 email={currentUser?.email || emailRef.current?.value || "User"}
+     |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot access ref value during render
+  66 |                 onComplete={() => navigate("/health-context")}
+  67 |             />
+  68 |         );            react-hooks/refs
+  65:24  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+  63 |         return (
+  64 |             <WelcomeScreen
+> 65 |                 email={currentUser?.email || emailRef.current?.value || "User"}
+     |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot access ref value during render
+  66 |                 onComplete={() => navigate("/health-context")}
+  67 |             />
+  68 |         );  react-hooks/refs
+  65:46  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+  63 |         return (
+  64 |             <WelcomeScreen
+> 65 |                 email={currentUser?.email || emailRef.current?.value || "User"}
+     |                                              ^^^^^^^^^^^^^^^^ Cannot access ref value during render
+  66 |                 onComplete={() => navigate("/health-context")}
+  67 |             />
+  68 |         );                   react-hooks/refs
+
+D:\Ingrelyze\frontend\src\pages\WeeklyReport.jsx
+  1:38  error  'useMemo' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+✖ 41 problems (40 errors, 1 warning)
+

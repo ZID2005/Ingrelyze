@@ -1,0 +1,54 @@
+/* src/components/GlassButton.css */
+.glass-button-wrap {
+    position: relative;
+    display: inline-flex;
+    transition: transform 0.2s ease;
+}
+
+.glass-button-wrap:hover {
+    transform: translateY(-2px);
+}
+
+.glass-button-wrap:active {
+    transform: translateY(0px) scale(0.98);
+}
+
+.glass-button {
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow:
+        inset 0 2px 10px rgba(255, 255, 255, 0.3),
+        0 8px 32px 0 rgba(31, 38, 135, 0.1);
+    color: #1e293b;
+    width: 100%;
+    height: 100%;
+}
+
+.glass-button-text {
+    color: inherit;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.glass-button-shadow {
+    position: absolute;
+    top: 10%;
+    left: 5%;
+    right: 5%;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.05);
+    filter: blur(15px);
+    z-index: -1;
+    pointer-events: none;
+}
+
+.glass-button:hover {
+    background: rgba(255, 255, 255, 0.35);
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
+.all-unset {
+    all: unset;
+}

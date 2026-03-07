@@ -1,0 +1,250 @@
+/* Profile Page Specific Styles - Premium Dark Gradient Theme */
+
+.profile-page {
+    min-height: 100vh;
+    width: 100vw;
+    /* Force viewport width */
+    position: absolute;
+    /* Break out of any flow context */
+    top: 0;
+    left: 0;
+    background-color: #0f172a;
+    /* Fallback */
+    background-image:
+        radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.4) 0%, transparent 50%),
+        radial-gradient(circle at 85% 30%, rgba(30, 58, 138, 0.4) 0%, transparent 50%),
+        linear-gradient(135deg, #020617 0%, #1e1b4b 100%);
+    background-attachment: fixed;
+    background-size: 200% 200%;
+    animation: gradientMove 15s ease infinite;
+    color: #f8fafc;
+    font-family: 'Inter', sans-serif;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+    z-index: 50;
+    /* Ensure on top */
+}
+
+@keyframes gradientMove {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+/* Floating Brand */
+.floating-brand {
+    position: fixed;
+    top: 30px;
+    left: 40px;
+    font-family: "Playfair Display", serif;
+    font-size: 2.5rem;
+    font-weight: 800;
+    z-index: 100;
+    background: linear-gradient(135deg, #e2e8f0 0%, #94a3b8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.02em;
+    opacity: 0.9;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+/* Floating Nav */
+.floating-nav {
+    position: fixed;
+    top: 30px;
+    right: 40px;
+    display: flex;
+    gap: 1rem;
+    z-index: 100;
+}
+
+.nav-icon-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #e2e8f0;
+    font-size: 1.25rem;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-icon-btn:hover {
+    transform: scale(1.1);
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 15px rgba(124, 58, 237, 0.3);
+}
+
+.nav-icon-btn.active {
+    background: rgba(124, 58, 237, 0.2);
+    /* Violet tint */
+    border-color: rgba(139, 92, 246, 0.5);
+    color: #ffffff;
+    box-shadow: 0 0 10px rgba(124, 58, 237, 0.2);
+}
+
+/* Content Area - SaaS Desktop Layout */
+.profile-content {
+    width: 100%;
+    max-width: 1400px;
+    /* Expanded for desktop */
+    padding: 6rem 60px 4rem 60px;
+    /* 60px horizontal padding */
+    margin: 0 auto;
+    background: transparent;
+    box-shadow: none;
+    border: none;
+}
+
+.profile-header {
+    text-align: center;
+    /* Center align */
+    margin-bottom: 2rem;
+    padding-left: 0;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.profile-header h2 {
+    font-family: "Playfair Display", serif;
+    font-size: 2.5rem;
+    /* Reduced from 3rem */
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.profile-header p {
+    color: #94a3b8;
+    font-size: 1rem;
+    font-weight: 400;
+}
+
+/* Grid Layout for Form */
+.profile-form {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    /* Sidebar style left column, fluid right */
+    gap: 2.5rem;
+    align-items: start;
+}
+
+
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.section-subtitle {
+    font-size: 0.9rem;
+    color: #94a3b8;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 1rem;
+}
+
+.form-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+
+
+/* Actions */
+.profile-actions-card {
+    grid-column: 1 / -1;
+    margin-top: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* Ensures center alignment */
+    /* Ensure no unexpected width forcing */
+    width: 100%;
+    justify-content: center;
+}
+
+
+
+/* Alerts */
+.profile-alert-error {
+    background: rgba(127, 29, 29, 0.2);
+    border: 1px solid rgba(248, 113, 113, 0.2);
+    color: #fca5a5;
+    padding: 1rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    font-size: 0.9rem;
+    backdrop-filter: blur(5px);
+}
+
+.profile-alert-success {
+    background: rgba(20, 83, 45, 0.2);
+    border: 1px solid rgba(74, 222, 128, 0.2);
+    color: #86efac;
+    padding: 1rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    font-size: 0.9rem;
+    backdrop-filter: blur(5px);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .profile-form {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-content {
+        padding: 6rem 2rem;
+    }
+}
+
+/* Input Placeholder Color */
+::placeholder {
+    color: #64748b;
+    opacity: 1;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #020617;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+}
