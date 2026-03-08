@@ -50,11 +50,12 @@ export default function Dashboard() {
     }, [chatMessages, isAiLoading]);
 
     // Daily Tracking State (Strictly isolated per-user via Firestore)
-    const [dailyEntries, setDailyEntries] = useState([]);
-    const [recentlyAnalyzed, setRecentlyAnalyzed] = useState([]);
+    const [allEntries, setAllEntries] = useState([]); // All historical entries
+    const [dailyEntries, setDailyEntries] = useState([]); // Today only
+    const [recentlyAnalyzed, setRecentlyAnalyzed] = useState([]); // Last 5
     const [dailyTotals, setDailyTotals] = useState({ calories: 0, protein: 0, carbs: 0, fat: 0, sugar: 0 });
-    const [weeklyData, setWeeklyData] = useState([]);
-    const [weeklyEntries, setWeeklyEntries] = useState([]);
+    const [weeklyData, setWeeklyData] = useState([]); // Chart data
+    const [weeklyEntries, setWeeklyEntries] = useState([]); // Past 7 days objects
 
     async function handleAiSubmit(e) {
         if (e.key && e.key !== 'Enter') return;
@@ -94,6 +95,31 @@ export default function Dashboard() {
             if (response.data && response.data.success) {
                 const cleanText = response.data.analysis.replace(/\*\*/g, '');
                 setChatMessages(prev => [...prev, { text: cleanText, sender: 'ai' }]);
+
+                // 2. Persist any detected foods to Firestore
+                if (response.data.detected_foods && response.data.detected_foods.length > 0) {
+                    const todayStr = new Date().toLocaleDateString('en-CA');
+
+                    response.data.detected_foods.forEach(food => {
+                        const dbEntry = {
+                            userId: currentUser.uid,
+                            foodName: food.name,
+                            calories: food.calories || 0,
+                            protein: food.protein || 0,
+                            carbs: food.carbs || 0,
+                            fat: food.fat || 0,
+                            sugar: food.sugar || 0,
+                            date: todayStr,
+                            healthLevel: 0, // Placeholder for chat-logged items
+                            analysis: { explanation: "Logged via AI Assistant" },
+                            createdAt: serverTimestamp()
+                        };
+
+                        addDoc(collection(db, "foodEntries"), dbEntry).catch(err =>
+                            console.error("AI Logging Error:", err)
+                        );
+                    });
+                }
             } else {
                 setChatMessages(prev => [...prev, { text: "Sorry, I couldn't process that right now.", sender: 'ai' }]);
             }
@@ -105,178 +131,94 @@ export default function Dashboard() {
         }
     }
 
-    async function fetchTodayTotal() {
-        if (!currentUser) return;
-        try {
-            const todayStr = new Date().toLocaleDateString('en-CA');
-            const q = query(
-                collection(db, "foodEntries"),
-                where("userId", "==", currentUser.uid),
-                where("date", "==", todayStr)
-            );
-            const snapshot = await getDocs(q);
-
-            let totals = { calories: 0, protein: 0, carbs: 0, fat: 0, sugar: 0 };
-            const tempEntries = []; // Local array to hold raw entries for the graph hook
-            snapshot.forEach(doc => {
-                const d = doc.data();
-                totals.calories += Number(d.calories || 0);
-                totals.protein += Number(d.protein || 0);
-                totals.carbs += Number(d.carbs || 0);
-                totals.fat += Number(d.fat || 0);
-                totals.sugar += Number(d.sugar || 0);
-                tempEntries.push(d); // Push raw entry
-            });
-
-            // Round to 1 decimal point for display like python did
-            Object.keys(totals).forEach(k => totals[k] = Math.round(totals[k] * 10) / 10);
-            setDailyTotals(totals);
-            setDailyEntries(tempEntries); // Hook it formally into state for the Trend chart
-
-        } catch (err) {
-            console.error("Failed to fetch today's totals", err);
+    // Centralized Data Processor: Derives all derived states from allEntries
+    useEffect(() => {
+        if (!allEntries || allEntries.length === 0) {
+            setDailyEntries([]);
+            setDailyTotals({ calories: 0, protein: 0, carbs: 0, fat: 0, sugar: 0 });
+            setWeeklyEntries([]);
+            setWeeklyData([]);
+            setRecentlyAnalyzed([]);
+            return;
         }
-    }
 
-    async function fetchWeeklyTotals() {
-        if (!currentUser) return;
-        try {
-            // Get dates for last 7 days
-            const dates = [];
-            for (let i = 6; i >= 0; i--) {
-                const d = new Date();
-                d.setDate(d.getDate() - i);
-                dates.push(d.toLocaleDateString('en-CA'));
+        const todayStr = new Date().toLocaleDateString('en-CA');
+
+        // 1. Get Today's Entries & Totals
+        const todayItems = allEntries.filter(e => e.date === todayStr);
+        let tTotals = { calories: 0, protein: 0, carbs: 0, fat: 0, sugar: 0 };
+        todayItems.forEach(d => {
+            tTotals.calories += Number(d.calories || 0);
+            tTotals.protein += Number(d.protein || 0);
+            tTotals.carbs += Number(d.carbs || 0);
+            tTotals.fat += Number(d.fat || 0);
+            tTotals.sugar += Number(d.sugar || 0);
+        });
+        Object.keys(tTotals).forEach(k => tTotals[k] = Math.round(tTotals[k] * 10) / 10);
+
+        setDailyEntries(todayItems);
+        setDailyTotals(tTotals);
+
+        // 2. Get Weekly Entries & Chart Data
+        const dates = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            dates.push(d.toLocaleDateString('en-CA'));
+        }
+
+        const dailyMap = {};
+        dates.forEach(d => dailyMap[d] = { calories: 0, protein: 0, carbs: 0, fat: 0, sugar: 0, sodium: 0 });
+
+        const weekItems = allEntries.filter(e => e.date >= dates[0] && e.date <= dates[6]);
+        weekItems.forEach(data => {
+            if (dailyMap[data.date]) {
+                dailyMap[data.date].calories += Number(data.calories || 0);
+                dailyMap[data.date].protein += Number(data.protein || 0);
+                dailyMap[data.date].carbs += Number(data.carbs || 0);
+                dailyMap[data.date].fat += Number(data.fat || 0);
+                dailyMap[data.date].sugar += Number(data.sugar || 0);
+                dailyMap[data.date].sodium += Number(data.sodium || 0);
             }
+        });
 
-            const q = query(
-                collection(db, "foodEntries"),
-                where("userId", "==", currentUser.uid),
-                where("date", ">=", dates[0]),
-                where("date", "<=", dates[6])
-            );
-            const snapshot = await getDocs(q);
+        const formattedWeekly = dates.map(d => {
+            const dateObj = new Date(d);
+            return {
+                name: dateObj.toLocaleDateString('en-US', { weekday: 'short' }),
+                calories: Math.round(dailyMap[d].calories),
+                protein: Math.round(dailyMap[d].protein),
+                carbs: Math.round(dailyMap[d].carbs),
+                fat: Math.round(dailyMap[d].fat),
+                sugar: Math.round(dailyMap[d].sugar),
+                sodium: Math.round(dailyMap[d].sodium)
+            };
+        });
 
-            const dailyMap = {};
-            const rawWeeklyEntries = [];
-            dates.forEach(d => dailyMap[d] = { calories: 0, protein: 0, carbs: 0, fat: 0, sugar: 0, sodium: 0 });
+        setWeeklyEntries(weekItems);
+        setWeeklyData(formattedWeekly);
 
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                // Ensure we save the food name and health level for the AI context
-                rawWeeklyEntries.push({
-                    id: doc.id,
-                    foodName: data.foodName || "Unknown",
-                    healthLevel: data.healthLevel, // Do NOT default to 0, or old entries won't fall back to nutrient checks
-                    date: data.date || "Unknown Date",
-                    ...data
-                });
+        // 3. Recently Analyzed (Top 5)
+        const top5 = allEntries.slice(0, 5).map(item => {
+            const numScore = item.healthLevel !== undefined ? item.healthLevel : (item.analysis?.health_level || 0);
+            return {
+                id: item.id || Math.random().toString(),
+                name: item.foodName || "Unknown",
+                gradeInfo: getGradeInfo(numScore),
+                date: item.date || new Date().toLocaleDateString('en-CA'),
+                analysisResult: item.analysis || { health_level: numScore },
+                nutrients: item.fullNutrients || { calories: item.calories || 0 }
+            };
+        });
+        setRecentlyAnalyzed(top5);
 
-                if (dailyMap[data.date]) {
-                    dailyMap[data.date].calories += Number(data.calories || 0);
-                    dailyMap[data.date].protein += Number(data.protein || 0);
-                    dailyMap[data.date].carbs += Number(data.carbs || 0);
-                    dailyMap[data.date].fat += Number(data.fat || 0);
-                    dailyMap[data.date].sugar += Number(data.sugar || 0);
-                    dailyMap[data.date].sodium += Number(data.sodium || 0);
-                }
-            });
-
-            const formattedData = dates.map(d => {
-                const dateObj = new Date(d);
-                const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-                return {
-                    name: dayName,
-                    calories: Math.round(dailyMap[d].calories),
-                    protein: Math.round(dailyMap[d].protein),
-                    carbs: Math.round(dailyMap[d].carbs),
-                    fat: Math.round(dailyMap[d].fat),
-                    sugar: Math.round(dailyMap[d].sugar),
-                    sodium: Math.round(dailyMap[d].sodium)
-                };
-            });
-
-            // Sort weekly entries chronologically for the AI
-            rawWeeklyEntries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-            setWeeklyData(formattedData);
-            setWeeklyEntries(rawWeeklyEntries);
-        } catch (err) {
-            console.error("Failed to fetch weekly totals", err);
-        }
-    }
-
-    async function fetchRecentFoods() {
-        if (!currentUser) return;
-        try {
-            const q = query(
-                collection(db, "foodEntries"),
-                where("userId", "==", currentUser.uid)
-            );
-            const snapshot = await getDocs(q);
-
-            const rawEntries = [];
-            snapshot.forEach(doc => {
-                rawEntries.push({ id: doc.id, ...doc.data() });
-            });
-
-            // Sort descending by time
-            rawEntries.sort((a, b) => {
-                const getMs = (val) => {
-                    if (!val) return 0;
-                    if (val.toMillis) return val.toMillis();
-                    if (typeof val === 'string') return new Date(val).getTime();
-                    return 0;
-                };
-                return getMs(b.createdAt) - getMs(a.createdAt);
-            });
-
-            const top5 = rawEntries.slice(0, 5);
-            const mapped = top5.map(item => {
-                const numScore = item.healthLevel !== undefined ? item.healthLevel : (item.analysis?.health_level || 0);
-
-                // Fallbacks for older DB entries missing the new schema
-                const fallbackAnalysis = item.analysis || {
-                    health_level: numScore,
-                    health_label: getGradeInfo(numScore).grade + " Grade (Historical)",
-                    original_health_level: numScore,
-                    probabilities: [],
-                    warnings: [],
-                    explanation: "This is a historical entry. Precise feedback requires re-analyzing this food."
-                };
-
-                const fallbackNutrients = item.fullNutrients || {
-                    calories: item.calories || 0,
-                    protein: item.protein || 0,
-                    carbohydrates: item.carbs || 0,
-                    fat: item.fat || 0,
-                    sugar: item.sugar || 0,
-                    sodium: 0,
-                    saturated_fat: 0,
-                    cholesterol: 0,
-                    fiber: 0
-                };
-
-                return {
-                    id: item.id || Math.random().toString(),
-                    name: item.foodName || "Unknown",
-                    gradeInfo: getGradeInfo(numScore), // Store full info object
-                    date: item.date || new Date().toLocaleDateString('en-CA'),
-                    analysisResult: fallbackAnalysis,
-                    nutrients: fallbackNutrients
-                };
-            });
-
-            setRecentlyAnalyzed(mapped);
-        } catch (err) {
-            console.error("Failed to fetch recent foods", err);
-        }
-    }
+    }, [allEntries]);
 
     useEffect(() => {
-        fetchRecentFoods();
-        fetchTodayTotal();
-        fetchWeeklyTotals();
+        if (!currentUser) return;
+
+        // Standard non-realtime initial load placeholders if needed, 
+        // but onSnapshot will handle it.
     }, [currentUser]);
 
     // Load user prefs
@@ -334,14 +276,14 @@ export default function Dashboard() {
                 entries.push({ id: doc.id, ...doc.data() });
             });
 
-            // Sort in memory to avoid requiring a composite index right away
+            // Sort descending by time
             entries.sort((a, b) => {
-                const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.timestamp?.toMillis ? a.timestamp.toMillis() : 0);
-                const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.timestamp?.toMillis ? b.timestamp.toMillis() : 0);
-                return timeB - timeA; // desc
+                const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+                const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+                return timeB - timeA;
             });
 
-            setDailyEntries(entries);
+            setAllEntries(entries);
         }, (err) => {
             console.error("Failed to load user-isolated data:", err);
         });
@@ -484,12 +426,7 @@ export default function Dashboard() {
                         createdAt: serverTimestamp() // Better than local Timestamp.now()
                     };
 
-                    addDoc(collection(db, "foodEntries"), dbEntry).then(() => {
-                        // 2. Immediately refetch from backend to sync explicit isolated DB realities
-                        fetchRecentFoods();
-                        fetchTodayTotal();
-                        fetchWeeklyTotals();
-                    }).catch(dbErr => {
+                    addDoc(collection(db, "foodEntries"), dbEntry).catch(dbErr => {
                         console.error("Failed to save entry to Firestore:", dbErr);
                     });
                 }
@@ -1319,9 +1256,7 @@ export default function Dashboard() {
                                         </div>
                                     )}
 
-                                    {/* The Glass Icon Trigger with Animated Orb */}
                                     <div style={{ position: 'relative' }}>
-                                        <div className="ai-glow-orb"></div>
                                         <GlassIcons
                                             items={[{
                                                 icon: isChatOpen ? '✕' : '✨',

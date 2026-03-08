@@ -6,11 +6,35 @@ import { LineChart, Line, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tool
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import Particles from "../components/Particles";
+import { GlassCalendar } from "../components/GlassCalendar";
 
 export default function WeeklyReport() {
     const { currentUser } = useAuth();
+
+    // Calculate Week Range (Monday - Sunday)
+    const weekRangeString = useMemo(() => {
+        const now = new Date();
+        const dayOfWeek = now.getDay(); // 0 (Sun) to 6 (Sat)
+
+        // Adjust for Monday start (Monday=1, ..., Sunday=7)
+        const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+
+        const monday = new Date(now);
+        monday.setDate(now.getDate() + diffToMonday);
+
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+
+        const formatOptions = { month: 'short', day: '2-digit' };
+        const startStr = monday.toLocaleDateString('en-US', formatOptions);
+        const endStr = sunday.toLocaleDateString('en-US', formatOptions);
+
+        return `${startStr} – ${endStr}`;
+    }, []);
+
     const [userPrefs, setUserPrefs] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [showCalendar, setShowCalendar] = useState(false);
 
     // Weekly Data State
     const [weeklyData, setWeeklyData] = useState([]);
@@ -19,6 +43,48 @@ export default function WeeklyReport() {
     const [weightImpact, setWeightImpact] = useState({ indicator: 'Balanced', label: 'Maintaining Weight', surplusDeficit: 0 });
     const [recommendations, setRecommendations] = useState([]);
     const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+    const [heatmapData, setHeatmapData] = useState([]);
+    const [heatmapDailyStats, setHeatmapDailyStats] = useState({});
+    const [selectedDayData, setSelectedDayData] = useState(null);
+    const [showDayDetail, setShowDayDetail] = useState(false);
+
+    // Memoize nutrition data for GlassCalendar
+    const calendarNutritionData = useMemo(() => {
+        const data = {};
+        Object.keys(heatmapDailyStats).forEach(date => {
+            const stats = heatmapDailyStats[date];
+            let goal = 2000;
+            if (userPrefs?.weightGoal === 'lose') goal = Number(userPrefs.calories) || 1700;
+            else if (userPrefs?.weightGoal === 'gain') goal = Number(userPrefs.calories) || 2500;
+            else if (userPrefs?.calories) goal = Number(userPrefs.calories);
+
+            const val = stats.calories;
+            const diffPercent = ((val - goal) / goal) * 100;
+
+            let status = 1; // Default: Attention/Poor
+            let label = "Under Goal";
+
+            if (val === 0) {
+                status = 0; // Empty
+                label = "No Data";
+            } else if (Math.abs(diffPercent) <= 15) {
+                status = 3; // Healthy
+                label = "Healthy";
+            } else if (Math.abs(diffPercent) <= 35) {
+                status = 2; // Moderate
+                label = "Moderate";
+            } else if (diffPercent > 35) {
+                status = 1; // Poor
+                label = "Poor (Over Limit)";
+            } else {
+                status = 1; // Deficit
+                label = "Under Goal";
+            }
+
+            data[date] = { ...stats, status, statusLabel: label, targetGoal: goal };
+        });
+        return data;
+    }, [heatmapDailyStats, userPrefs]);
 
     // Fetch User Profile
     useEffect(() => {
@@ -42,12 +108,14 @@ export default function WeeklyReport() {
         async function fetchWeeklyTotals() {
             if (!currentUser) return;
             try {
-                const dates = [];
-                for (let i = 6; i >= 0; i--) {
+                // Determine Date Ranges
+                const heatDates = [];
+                for (let i = 29; i >= 0; i--) {
                     const d = new Date();
                     d.setDate(d.getDate() - i);
-                    dates.push(d.toLocaleDateString('en-CA'));
+                    heatDates.push(d.toLocaleDateString('en-CA'));
                 }
+                const weekDates = heatDates.slice(-7); // Last 7 days
 
                 const q = query(
                     collection(db, "foodEntries"),
@@ -57,29 +125,26 @@ export default function WeeklyReport() {
 
                 const dailyMap = {};
                 const rawWeeklyEntries = [];
-                dates.forEach(d => dailyMap[d] = { calories: 0, protein: 0, carbs: 0, fat: 0, sugar: 0, sodium: 0 });
-
-                const minDate = dates[0];
-                const maxDate = dates[6];
+                heatDates.forEach(d => dailyMap[d] = { calories: 0, protein: 0, carbs: 0, fat: 0, sugar: 0, sodium: 0 });
 
                 snapshot.forEach(doc => {
                     const data = doc.data();
+                    if (dailyMap[data.date]) {
+                        dailyMap[data.date].calories += Number(data.calories || 0);
+                        dailyMap[data.date].protein += Number(data.protein || 0);
+                        dailyMap[data.date].carbs += Number(data.carbs || 0);
+                        dailyMap[data.date].fat += Number(data.fat || 0);
+                        dailyMap[data.date].sugar += Number(data.sugar || 0);
+                        dailyMap[data.date].sodium += Number(data.sodium || 0);
 
-                    // In-memory filter to bypass the need for a strict Firestore composite index
-                    if (data.date >= minDate && data.date <= maxDate) {
-                        rawWeeklyEntries.push(data);
-                        if (dailyMap[data.date]) {
-                            dailyMap[data.date].calories += Number(data.calories || 0);
-                            dailyMap[data.date].protein += Number(data.protein || 0);
-                            dailyMap[data.date].carbs += Number(data.carbs || 0);
-                            dailyMap[data.date].fat += Number(data.fat || 0);
-                            dailyMap[data.date].sugar += Number(data.sugar || 0);
-                            dailyMap[data.date].sodium += Number(data.sodium || 0);
+                        // Keep track of entries for the weekly summary
+                        if (weekDates.includes(data.date)) {
+                            rawWeeklyEntries.push(data);
                         }
                     }
                 });
 
-                const formattedData = dates.map(d => {
+                const formattedWeeklyData = weekDates.map(d => {
                     const dateObj = new Date(d);
                     const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
                     return {
@@ -93,9 +158,17 @@ export default function WeeklyReport() {
                     };
                 });
 
+                const heatmapValues = heatDates.map(date => ({
+                    date,
+                    count: Math.round(dailyMap[date].calories)
+                }));
+
                 rawWeeklyEntries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-                setWeeklyData(formattedData);
+                setWeeklyData(formattedWeeklyData);
                 setWeeklyEntries(rawWeeklyEntries);
+                setHeatmapData(heatmapValues);
+                setHeatmapDailyStats(dailyMap);
+
             } catch (err) {
                 console.error("Failed to fetch weekly totals", err);
             } finally {
@@ -276,8 +349,112 @@ export default function WeeklyReport() {
             />
             <div style={{ position: 'relative', zIndex: 1, padding: '2rem 4rem 4rem 4rem', maxWidth: '1440px', margin: '0 auto', fontFamily: 'Inter, sans-serif' }}>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                    <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#1e293b', margin: 0 }}>Detailed Weekly Report</h1>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', position: 'relative' }}>
+                    <div
+                        style={{ display: 'flex', flexDirection: 'column', gap: '4px', cursor: 'pointer', userSelect: 'none' }}
+                        onClick={() => setShowCalendar(!showCalendar)}
+                    >
+                        <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#1e293b', margin: 0 }}>Detailed Weekly Report</h1>
+                        <div style={{ fontSize: '1rem', color: '#64748b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '1.2rem' }}>🗓️</span>
+                            Week: <span style={{ color: '#3b82f6' }}>{weekRangeString}</span>
+                        </div>
+                    </div>
+
+                    {/* Glassy Calendar Popup */}
+                    {showCalendar && (
+                        <div style={{
+                            position: 'absolute',
+                            top: '100%',
+                            left: 0,
+                            marginTop: '12px',
+                            zIndex: 1000,
+                            animation: 'fadeInScale 0.2s ease-out'
+                        }}>
+                            <GlassCalendar
+                                nutritionData={calendarNutritionData}
+                                onDateSelect={(date) => {
+                                    const dateKey = date.toLocaleDateString('en-CA');
+                                    const stats = heatmapDailyStats[dateKey];
+                                    if (stats && stats.calories > 0) {
+                                        const dayInfo = calendarNutritionData[dateKey];
+                                        if (dayInfo) {
+                                            setSelectedDayData({
+                                                date: dateKey,
+                                                calories: Math.round(dayInfo.calories),
+                                                protein: Math.round(dayInfo.protein),
+                                                carbs: Math.round(dayInfo.carbs),
+                                                fat: Math.round(dayInfo.fat),
+                                                scoreLabel: dayInfo.statusLabel,
+                                                targetGoal: dayInfo.targetGoal
+                                            });
+                                            setShowDayDetail(true);
+                                        }
+                                    }
+                                }}
+                                onClose={() => setShowCalendar(false)}
+                            />
+
+                            {/* Day Detail Popup overlay */}
+                            {showDayDetail && selectedDayData && (
+                                <div
+                                    style={{
+                                        position: 'fixed',
+                                        inset: 0,
+                                        background: 'rgba(0,0,0,0.1)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        zIndex: 1100
+                                    }}
+                                    onClick={() => setShowDayDetail(false)}
+                                >
+                                    <div
+                                        style={{
+                                            background: 'rgba(255, 255, 255, 0.8)',
+                                            backdropFilter: 'blur(20px)',
+                                            padding: '24px',
+                                            borderRadius: '24px',
+                                            width: '280px',
+                                            boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+                                            border: '1px solid rgba(255,255,255,0.5)',
+                                            animation: 'scaleIn 0.3s ease-out'
+                                        }}
+                                        onClick={e => e.stopPropagation()}
+                                    >
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                                            <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700, color: '#1e293b' }}>
+                                                {new Date(selectedDayData.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                            </h4>
+                                            <button onClick={() => setShowDayDetail(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+                                        </div>
+
+                                        <div style={{ display: 'grid', gap: '12px' }}>
+                                            {[
+                                                { label: 'Calories', val: `${selectedDayData.calories} / ${selectedDayData.targetGoal} kcal`, color: '#3b82f6' },
+                                                { label: 'Protein', val: `${selectedDayData.protein}g`, color: '#10b981' },
+                                                { label: 'Carbs', val: `${selectedDayData.carbs}g`, color: '#f59e0b' },
+                                                { label: 'Fat', val: `${selectedDayData.fat}g`, color: '#8b5cf6' },
+                                                { label: 'Status', val: selectedDayData.scoreLabel, color: selectedDayData.scoreLabel === 'Healthy' ? '#22c55e' : (selectedDayData.scoreLabel === 'Moderate' ? '#eab308' : '#ef4444') }
+                                            ].map(item => (
+                                                <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: 'rgba(255,255,255,0.4)', borderRadius: '12px' }}>
+                                                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>{item.label}</span>
+                                                    <span style={{ fontSize: '0.95rem', fontWeight: 700, color: item.color }}>{item.val}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <style>{`
+                                @keyframes scaleIn {
+                                    from { transform: scale(0.9); opacity: 0; }
+                                    to { transform: scale(1); opacity: 1; }
+                                }
+                            `}</style>
+                        </div>
+                    )}
                     <button
                         onClick={downloadPDFReport}
                         disabled={isDownloadingPdf}

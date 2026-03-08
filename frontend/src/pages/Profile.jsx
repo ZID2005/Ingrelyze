@@ -5,7 +5,9 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import "./Profile.css";
-import BlurText from "../components/BlurText";
+import axios from "axios";
+import SplitText from "../components/SplitText";
+import AnimatedText from "../components/AnimatedText";
 import LightPillar from "../components/LightPillar";
 
 export default function Profile() {
@@ -213,14 +215,14 @@ export default function Profile() {
     }
 
     return (
-        <div className="profile-page auth-layout" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', overflowY: 'auto', overflowX: 'hidden', background: '#000', zIndex: 9999 }}>
+        <div className="profile-page auth-layout" style={{ minHeight: '100vh', width: '100%', background: '#000' }}>
             {/* Background Animation from Auth pages */}
             <LightPillar
                 topColor="#b19eef"
                 bottomColor="#020617"
-                intensity={0.8}
-                quality="high"
-                pillarWidth={2.0}
+                intensity={0.6}
+                quality="medium"
+                pillarWidth={1.5}
                 pillarHeight={0.6}
                 pillarRotation={35}
             />
@@ -230,42 +232,52 @@ export default function Profile() {
                 <div style={{ position: 'absolute', top: '2rem', left: '2rem', right: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 100 }}>
                     <div className="floating-brand" style={{ position: 'static', margin: 0 }}>Ingrelyze</div>
 
-                    {/* Centered Heading at Top Level */}
-                    <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', pointerEvents: 'none' }}>
-                        <span style={{ color: '#fff', fontSize: '2rem', fontWeight: 700, pointerEvents: 'auto', textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)', lineHeight: 1 }}>Your Health Profile</span>
-                        <div style={{ pointerEvents: 'auto', marginTop: '0.8rem' }}>
+                    <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none' }}>
+                        <span style={{
+                            color: '#fff',
+                            fontSize: '0.85rem',
+                            fontWeight: 600,
+                            letterSpacing: '0.15em',
+                            textTransform: 'uppercase',
+                            opacity: 0.6,
+                            pointerEvents: 'auto',
+                            lineHeight: 1,
+                            marginBottom: '0.4rem'
+                        }}>Your Health Profile</span>
+                        <div style={{ pointerEvents: 'auto' }}>
                             {currentUser?.displayName ? (
-                                <BlurText
+                                <SplitText
                                     text={currentUser.displayName}
-                                    delay={150}
-                                    animateBy="letters"
-                                    direction="top"
-                                    textColor="#ffffff"
+                                    delay={40}
+                                    duration={1.2}
+                                    ease="power2.out"
+                                    threshold={0}
+                                    rootMargin="0px"
                                     className="profile-shiny-name"
-                                    style={{ fontSize: '1.8rem', fontWeight: 600, letterSpacing: '1px', textShadow: '0 0 15px rgba(177, 158, 239, 0.6)' }}
+                                    style={{ overflow: 'visible' }}
                                 />
                             ) : (
-                                <BlurText
+                                <SplitText
                                     text={currentUser?.email?.split('@')[0] || "User"}
-                                    delay={150}
-                                    animateBy="letters"
-                                    direction="top"
-                                    textColor="#ffffff"
+                                    delay={40}
+                                    duration={1.2}
+                                    ease="power2.out"
+                                    threshold={0}
+                                    rootMargin="0px"
                                     className="profile-shiny-name"
-                                    style={{ fontSize: '1.8rem', fontWeight: 600, letterSpacing: '1px', textShadow: '0 0 15px rgba(177, 158, 239, 0.6)' }}
+                                    style={{ overflow: 'visible' }}
                                 />
                             )}
                         </div>
-                        <p style={{
-                            color: '#94a3b8',
-                            fontSize: '0.9rem',
-                            pointerEvents: 'auto',
-                            margin: '0.2rem 0 0 0',
-                            textShadow: '0 1px 5px rgba(0,0,0,0.2)',
-                            fontWeight: 400
-                        }}>
-                            Customize your nutrition settings and medical context
-                        </p>
+                        <AnimatedText
+                            text="Customize your nutrition settings and medical context"
+                            textClassName="text-[#94a3b8] font-normal"
+                            style={{
+                                fontSize: '0.9rem',
+                                marginTop: '0.4rem',
+                                opacity: 0.9
+                            }}
+                        />
                     </div>
 
                     {/* Navigation Buttons */}

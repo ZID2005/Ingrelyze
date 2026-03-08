@@ -3,6 +3,9 @@ frontend/node_modules/
 frontend/dist/
 frontend/dist-ssr/
 frontend/*.local
+frontend/lint_output.txt
+frontend/build_output.log
+frontend/debug_network.js
 
 # --- Backend (Python) ---
 backend/__pycache__/
@@ -33,6 +36,9 @@ backend/MANIFEST
 backend/uploads/
 backend/analyze_crash.txt
 backend/backend_ai_crash.txt
+backend/model.joblib
+backend/*.json
+backend/*.txt
 
 # --- Environment Variables (CRITICAL) ---
 .env
@@ -57,6 +63,14 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+
+# --- Project Scratch & Test Files ---
+debug_search.py
+step1_load_inspect.py
+step2_clean_select.py
+step3_health_scoring.py
+test_nlp_logic.js
+verify_output.txt
 
 # --- Editor and OS ---
 .vscode/

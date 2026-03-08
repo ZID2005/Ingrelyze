@@ -3,11 +3,12 @@ class RuleEngine:
     def __init__(self):
         pass
 
-    def apply_rules(self, prediction, input_data, user_conditions):
+    def apply_rules(self, prediction, input_data, user_conditions, food_name=""):
         """
         Applies health rules based on user conditions and nutritional data.
         Returns a modified prediction (if critical) and a list of warnings.
         """
+        print(f"[DEBUG Rules] food_name='{food_name}', conditions={user_conditions}")
         warnings = []
         original_prediction = prediction
         
@@ -67,6 +68,16 @@ class RuleEngine:
         # LACTOSE INTOLERANCE (Severe)
         # -----------------------------
         if "Lactose:Severe" in user_conditions:
-            warnings.append("May contain dairy, check ingredients")
+            # Only warn if the food name suggests dairy or is a common hidden source
+            dairy_keywords = [
+                'milk', 'cheese', 'yogurt', 'butter', 'cream', 'whey', 'lactose', 
+                'pizza', 'ice cream', 'dessert', 'chocolate', 'latte', 'cappuccino',
+                'pasta', 'burger', 'sandwich', 'pastry', 'cake', 'cookie'
+            ]
+            food_lower = (food_name or "").lower()
+            if any(kw in food_lower for kw in dairy_keywords):
+                warnings.append("May contain dairy, check ingredients")
+            elif not food_name: # Fallback if no name provided
+                warnings.append("Check ingredients for dairy content")
 
         return prediction, warnings

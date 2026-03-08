@@ -11,17 +11,37 @@ from datetime import datetime, timedelta
 import os
 import traceback
 import time
+import base64
+import pypdf
+import json
+
+def extract_text_from_pdf(pdf_path):
+    try:
+        reader = pypdf.PdfReader(pdf_path)
+        text = ""
+        for page in reader.pages:
+            text += page.extract_text() + "\n"
+        return text.strip()
+    except Exception as e:
+        print(f"Error reading PDF: {e}")
+        return ""
 
 from model import HealthClassifier
 from rules import RuleEngine
-from config import DATA_PATH, HEALTH_LEVEL_MAP, FEATURES, GEMINI_API_KEY
+from config import DATA_PATH, HEALTH_LEVEL_MAP, FEATURES, GEMINI_API_KEY, GROQ_API_KEY
 import google.generativeai as genai
+from groq import Groq
 
-# Configure Gemini
+# Configure Gemini (Keeping for backward compatibility or fallback)
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
+
+# Configure Groq
+groq_client = None
+if GROQ_API_KEY:
+    groq_client = Groq(api_key=GROQ_API_KEY)
 else:
-    print("WARNING: GEMINI_API_KEY not found. AI assistant features will fail.")
+    print("WARNING: GROQ_API_KEY not found. AI assistant features will fail.")
 
 app = FastAPI(title="Ingrelyze Nutrition API", description="Predicts food health levels based on nutritional data.")
 
@@ -44,8 +64,29 @@ except Exception as e:
     print(f"Warning: Firebase Admin initialization failed: {e}")
     db = None
 
+# --- Medical Report Prompt ---
+MEDICAL_EXTRACTOR_PROMPT = """
+You are a highly accurate medical data extractor. Your task is to analyze the provided medical report (text or image) and extract specific health indicators.
+Return ONLY a JSON object with the following fields and allowed values:
+
+- "diabetes": "Low", "Medium", "High", or "Unknown"
+- "hypertension": "Low", "Medium", "High", or "Unknown"
+- "cholesterol": "Low", "Medium", "High", or "Unknown" 
+- "lactose": "None", "Mild", "Severe", or "Unknown"
+
+Base your assessment on keywords such as:
+- Diabetes: Blood glucose, HbA1c, insulin levels.
+- Hypertension: Blood pressure (systolic/diastolic), hypertension diagnosis.
+- Cholesterol: LDL, HDL, Triglycerides, total cholesterol.
+- Lactose: Lactose intolerance mention, stool acidity, hydrogen breath test results.
+
+If you are unsure or data is missing for a field, use "Unknown". 
+Do not include any explanation or extra text outside the JSON object.
+"""
+
 # --- Authentication Middleware ---
 def get_current_user(authorization: Optional[str] = Header(None)):
+    print(f"[DEBUG AUTH] Authorization Header: {authorization[:20] if authorization else 'MISSING'}...")
     if not authorization or not authorization.startswith("Bearer "):
         return {} # Do not block, just return empty user
     
@@ -62,6 +103,7 @@ def get_current_user(authorization: Optional[str] = Header(None)):
         payload_b64 = token.split('.')[1]
         payload_b64 += '=' * (-len(payload_b64) % 4)
         decoded = json.loads(base64.urlsafe_b64decode(payload_b64).decode('utf-8'))
+        print(f"[DEBUG AUTH] Decoded UID: {decoded.get('user_id', '')}")
         return {"uid": decoded.get("user_id", "")}
     except Exception as e:
         print(f"Token local decode failed: {e}")
@@ -118,15 +160,6 @@ def parse_food_input(text: str):
                 
     return parsed_items
 # ------------------
-
-# Add CORS Middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # For development, allow all. In production, specify frontend URL.
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # Initialize Model and Rules
 classifier = HealthClassifier()
@@ -370,7 +403,8 @@ def predict_health(request: PredictionRequest, user: dict = Depends(get_current_
         adjusted_prediction, warnings = rule_engine.apply_rules(
             prediction_cls, 
             internal_features, 
-            conditions
+            conditions,
+            food_name=request.food_name
         )
         
         # 3. Generate Explanation
@@ -421,9 +455,12 @@ def analyze_food(request: AnalyzeRequest, user: dict = Depends(get_current_user)
             food_name = item["food"]
             qty = item["quantity"]
             
+            print(f"[DEBUG Analyze] Searching for: '{food_name}' (qty: {qty})")
             try:
                 candidates = search_food(food_name, user)
+                print(f"[DEBUG Analyze] Found {len(candidates)} candidates for '{food_name}'")
             except Exception as e:
+                print(f"[DEBUG Analyze] Search failed for '{food_name}': {e}")
                 candidates = []
                 
             if candidates:
@@ -700,64 +737,85 @@ NUTRITION HISTORY (Analyze these carefully to answer questions about what the us
 USER QUESTION: "{request.query}"
 
 RESPONSE RULES:
-1. If the query is just a greeting (Hi/Hello), keep it short and friendly.
-2. If the user asks what they ate this week or today, REFERENCE the food names from the lists above.
-3. If they ask about specific nutrients (like vitamins, protein, or sugar), analyze the foods in the list. (e.g., "You had Spinach, which is a great source of Vitamins A and C").
-4. If there are high-risk foods (level 3 or 4 in the list), mention them and suggest healthier alternatives.
-5. Do not say "you haven't logged any food" if names appear in the 'Logged' lists above.
+1. If the query is just a greeting, stay short and friendly.
+2. If the user mentions eating NEW food (e.g. "I just had X"):
+   - You MUST estimate macros and include a JSON block at the end:
+     ```json
+     {{ "detected_foods": [ {{ "name": "Food Name", "calories": 123, "protein": 10, "carbs": 20, "fat": 5, "sugar": 2 }} ] }}
+     ```
+3. If no new food is reported, do not include the JSON block.
 
 STRICT RESPONSE STRUCTURE:
 1. Short direct answer.
-2. Data-driven explanation using the provided history.
+2. Data-driven explanation using history.
 3. One actionable tip.
+4. (Optional) The JSON block.
 """
-        # 5. Call Gemini
-        if not GEMINI_API_KEY:
-            raise Exception("Gemini API key is missing from backend configuration.")
+        # 5. Call Groq
+        if not groq_client:
+            raise Exception("Groq API key is missing from backend configuration.")
             
-        print(f"--- AI ASSISTANT: Using gemini-2.0-flash for query: {request.query[:30]}... ---")
+        print(f"--- AI ASSISTANT: Using llama-3.3-70b-versatile for query: {request.query[:30]}... ---")
+        print("DEBUG PROMPT START:")
+        print(prompt)
+        print("DEBUG PROMPT END")
         t_start = time.time()
         
         try:
-            model = genai.GenerativeModel('models/gemini-2.0-flash')
-            # Increase timeout to 30s for complex queries or slow API responsiveness
-            response = model.generate_content(prompt, request_options={"timeout": 30})
-            print(f"--- AI ASSISTANT: Response received in {time.time()-t_start:.2f}s ---")
+            chat_completion = groq_client.chat.completions.create(
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a helpful nutrition assistant for 'Ingrelyze'. If the user reports eating something, you must include the JSON 'detected_foods' block at the end of your response."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                model="llama-3.3-70b-versatile",
+                temperature=0.7,
+                max_tokens=1024,
+                top_p=1,
+                stream=False,
+            )
             
-            if response.candidates:
-                analysis_text = response.text.strip()
-            else:
-                analysis_text = "I'm sorry, I couldn't generate a response due to safety filters. Please try rephrasing."
+            full_content = chat_completion.choices[0].message.content.strip()
+            
+            # Extract JSON if present
+            detected_foods = []
+            analysis_text = full_content
+            
+            json_match = re.search(r'```json\s*(\{.*?\})\s*```', full_content, re.DOTALL)
+            if json_match:
+                try:
+                    import json
+                    json_data = json.loads(json_match.group(1))
+                    detected_foods = json_data.get("detected_foods", [])
+                    analysis_text = full_content.replace(json_match.group(0), "").strip()
+                except Exception as json_err:
+                    print(f"Failed to parse detected_foods JSON: {json_err}")
+            
+            print(f"--- AI ASSISTANT: Response received. Detected {len(detected_foods)} foods. ---")
+            
         except Exception as api_err:
-            print(f"--- AI ASSISTANT (2.0) ERROR: {api_err} ---")
+            print(f"--- AI ASSISTANT ERROR: {api_err} ---")
             
-            # Detailed error logging for debugging
+            # Log the exact error for diagnostics
             with open("backend_ai_crash.txt", "a", encoding="utf-8") as f:
-                f.write(f"\n[{datetime.now().isoformat()}] 2.0-flash Error: {str(api_err)}\n")
+                f.write(f"\n[{datetime.now().isoformat()}] Groq AI Error: {str(api_err)}\n")
             
-            # Fallback to 1.5-flash if 2.0 fails or is overloaded
-            try:
-                print("--- AI ASSISTANT: Falling back to gemini-1.5-flash ---")
-                model_fallback = genai.GenerativeModel('models/gemini-1.5-flash')
-                response_fallback = model_fallback.generate_content(prompt, request_options={"timeout": 30})
-                
-                if response_fallback.candidates:
-                    analysis_text = response_fallback.text.strip() + "\n\n(Note: Responded using fallback model)"
-                else:
-                    analysis_text = "I'm sorry, I couldn't generate a response even with the fallback model."
-            except Exception as fallback_err:
-                print(f"--- AI ASSISTANT (Fallback) ERROR: {fallback_err} ---")
-                with open("backend_ai_crash.txt", "a", encoding="utf-8") as f:
-                    f.write(f"[{datetime.now().isoformat()}] 1.5-flash Fallback Error: {str(fallback_err)}\n")
-                
-                if "429" in str(api_err) or "429" in str(fallback_err):
-                    analysis_text = "It looks like the AI assistant is very busy right now (Quota Limit). Please try again in a few minutes."
-                else:
-                    analysis_text = "I'm currently experiencing high demand or connectivity issues. Please try again in a moment."
+            err_msg = str(api_err)
+            if "429" in err_msg:
+                analysis_text = "The AI assistant has reached its rate limit. Please try again in a few moments."
+            else:
+                analysis_text = "I'm currently experiencing high demand or connectivity issues. Please try again in a moment."
+            detected_foods = []
 
         return {
             "success": True, 
             "analysis": analysis_text,
+            "detected_foods": detected_foods,
             "summary_used": summary
         }
     except Exception as e:
@@ -796,48 +854,78 @@ async def upload_medical_report(file: UploadFile = File(...), user: dict = Depen
 
     extracted_data = {}
     try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        gemini_file = genai.upload_file(file_path, mime_type=file.content_type)
+        if not groq_client:
+            raise Exception("Groq API key is missing from backend configuration.")
+
+        is_pdf = ext == ".pdf"
+        model_to_use = "llama-3.3-70b-versatile" # Default for text
+        prompt_with_context = MEDICAL_EXTRACTOR_PROMPT
+
+        if is_pdf:
+            # Extract text from PDF
+            text_content = extract_text_from_pdf(file_path)
+            if not text_content:
+                raise Exception("Could not extract any text from the PDF.")
+            prompt_with_context = f"{MEDICAL_EXTRACTOR_PROMPT}\n\nMEDICAL REPORT TEXT:\n{text_content}"
+            messages = [{"role": "user", "content": prompt_with_context}]
+        else:
+            # Handle Image with Vision
+            model_to_use = "llama-3.2-90b-vision-preview" # Using 90b for better vision accuracy and stability
+            base64_image = base64.b64encode(content).decode('utf-8')
+            messages = [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": MEDICAL_EXTRACTOR_PROMPT},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{file.content_type};base64,{base64_image}",
+                            },
+                        },
+                    ],
+                }
+            ]
         
-        prompt = """
-        Analyze the following medical report and extract health conditions into exact categories.
-        Return ONLY a raw JSON object (no markdown formatting, no code blocks) with the exact structure and strictly these exact string values:
-        {
-          "blood_sugar_summary": "Raw string of what was found for blood sugar, e.g. '150 mg/dL' or 'Not mentioned'",
-          "cholesterol_summary": "Raw string of what was found for cholesterol, e.g. '240 mg/dL' or 'Not mentioned'",
-          "blood_pressure_summary": "Raw string of what was found for blood pressure, e.g. '140/90' or 'Not mentioned'",
-          "diabetes": "Low" | "Medium" | "High" | "Unknown",
-          "hypertension": "Low" | "Medium" | "High" | "Unknown",
-          "cholesterol": "Low" | "Medium" | "High" | "Unknown",
-          "lactose": "None" | "Mild" | "Severe" | "Unknown"
-        }
-        Rules:
-        1. If the value is explicitly normal/healthy, output "Low" (or "None" for lactose).
-        2. If the value is slightly elevated/pre-diabetes/pre-hypertension, output "Medium" (or "Mild").
-        3. If the value is clearly high/disease state, output "High" (or "Severe").
-        4. CRITICAL: If the condition or indicator is NOT MENTIONED in the report, output "Unknown". This is important so we do not overwrite existing user settings if the report is silent.
-        5. Do not output anything except the JSON payload.
-        """
+        print(f"DEBUG: Processing medical report with model {model_to_use}...")
+        try:
+            chat_completion = groq_client.chat.completions.create(
+                messages=messages,
+                model=model_to_use,
+                response_format={"type": "json_object"}
+            )
+            extracted_data = json.loads(chat_completion.choices[0].message.content)
+            print(f"DEBUG: Extracted Data: {extracted_data}")
+        except Exception as ai_err:
+            print(f"ERROR: Groq AI Processing failed: {ai_err}")
+            if hasattr(ai_err, 'response'):
+                print(f"ERROR DETAILS: {ai_err.response.text}")
+            raise Exception(f"AI error while analyzing report: {ai_err}")
+
+        print(f"--- MEDICAL ANALYZER: Using {model_to_use} for {file.filename} ---")
+        t_start = time.time()
         
-        response = model.generate_content([gemini_file, prompt])
+        chat_completion = groq_client.chat.completions.create(
+            messages=messages,
+            model=model_to_use,
+            temperature=0.1, # Low temperature for consistent JSON extraction
+            response_format={"type": "json_object"} if not is_pdf else None # Groq vision doesn't always support json_object mode perfectly
+        )
         
-        import json
-        res_text = response.text.strip()
+        res_text = chat_completion.choices[0].message.content.strip()
+        print(f"--- MEDICAL ANALYZER: Response received in {time.time()-t_start:.2f}s ---")
+
+        # Clean up code blocks if present
         if res_text.startswith("```json"):
-            res_text = res_text[7:-3].strip()
+            res_text = res_text[7:].split("```")[0].strip()
         elif res_text.startswith("```"):
-            res_text = res_text[3:-3].strip()
+            res_text = res_text[3:].split("```")[0].strip()
             
         extracted_data = json.loads(res_text)
-        
-        try:
-            genai.delete_file(gemini_file.name)
-        except:
-            pass
             
     except Exception as e:
-        print("Error extracting data via Gemini:", str(e))
-        extracted_data = {"error": "Failed to extract text automatically."}
+        print("Error extracting data via Groq:", str(e))
+        extracted_data = {"error": f"Failed to extract text automatically: {str(e)}"}
 
     # 4. Update Firebase user profile (if possible backend-side)
     # The frontend is already updating its user doc, but we can do it here too or let frontend handle it.
