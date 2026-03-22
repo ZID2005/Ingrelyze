@@ -218,7 +218,8 @@ export default function Dashboard() {
                     });
                 }
             } else {
-                setChatMessages(prev => [...prev, { text: "Sorry, I couldn't process that right now.", sender: 'ai' }]);
+                const errorMsg = response.data?.analysis || "Sorry, I couldn't process that right now.";
+                setChatMessages(prev => [...prev, { text: errorMsg, sender: 'ai' }]);
             }
         } catch (err) {
             console.error("AI Assistant Error:", err);

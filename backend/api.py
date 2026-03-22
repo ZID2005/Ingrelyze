@@ -840,8 +840,10 @@ STRICT RESPONSE RULES:
             err_msg = str(api_err)
             if "429" in err_msg:
                 analysis_text = "The AI assistant has reached its rate limit. Please try again in a few moments."
+            elif "Groq API key" in err_msg:
+                analysis_text = "Configuration Error: Groq API key is missing on the server. Please add GROQ_API_KEY to your backend environment variables."
             else:
-                analysis_text = "I'm currently experiencing high demand or connectivity issues. Please try again in a moment."
+                analysis_text = f"I'm currently experiencing an issue: {err_msg[:100]}"
                 
             return {
                 "success": False, 
