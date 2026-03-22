@@ -14,6 +14,7 @@ import time
 import base64
 import pypdf
 import json
+import uvicorn
 
 def extract_text_from_pdf(pdf_path):
     try:
@@ -522,8 +523,8 @@ def analyze_food(request: AnalyzeRequest, user: dict = Depends(get_current_user)
             # Also pack the extra fields that the dashboard query expects when pulling recents, so it doesn't break
             db_entry["healthLevel"] = prediction_result.get("health_level", 0) if isinstance(prediction_result, dict) else getattr(prediction_result, 'health_level', 0)
             db_entry["date"] = request.local_date or datetime.now().strftime("%Y-%m-%d")
-            db_entry["analysis"] = prediction_result if isinstance(prediction_result, dict) else prediction_result.dict()
-            db_entry["fullNutrients"] = total_nutrients.dict()
+            db_entry["analysis"] = prediction_result if isinstance(prediction_result, dict) else prediction_result.model_dump()
+            db_entry["fullNutrients"] = total_nutrients.model_dump()
             # The Python Admin SDK hangs indefinitely if it tries to write without explicit JSON credentials locally. 
             # We construct the db_entry and return it for the frontend to safely insert instead.
             # db.collection("foodEntries").add(db_entry)
@@ -532,8 +533,8 @@ def analyze_food(request: AnalyzeRequest, user: dict = Depends(get_current_user)
     
     return {
         "success": True,
-        "analysis": total_nutrients.dict(),
-        "rating": prediction_result if isinstance(prediction_result, dict) else prediction_result.dict(),
+        "analysis": total_nutrients.model_dump(),
+        "rating": prediction_result if isinstance(prediction_result, dict) else prediction_result.model_dump(),
         "savedEntry": doc_data
     }
 
@@ -632,12 +633,21 @@ def ai_assistant_summary(request: AIAssistantRequest, user: dict = Depends(get_c
     if not user_id:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    user_prefs = request.user_preferences or {}
-    daily_totals = request.daily_totals or {"calories": 0.0, "protein": 0.0, "carbs": 0.0, "fat": 0.0, "sugar": 0.0, "sodium": 0.0}
+    user_prefs: dict = request.user_preferences or {}
+    daily_totals: dict = request.daily_totals or {"calories": 0.0, "protein": 0.0, "carbs": 0.0, "fat": 0.0, "sugar": 0.0, "sodium": 0.0}
     # Calculate weekly totals from the frontend's weekly_data array
-    weekly_totals = {"calories": 0.0, "protein": 0.0, "carbs": 0.0, "fat": 0.0, "sugar": 0.0, "sodium": 0.0}
-    high_sugar_days = 0
-    high_sodium_days = 0
+    weekly_totals: dict = {"calories": 0.0, "protein": 0.0, "carbs": 0.0, "fat": 0.0, "sugar": 0.0, "sodium": 0.0}
+    high_sugar_days: int = 0
+    high_sodium_days: int = 0
+    
+    # Define summary early to avoid UnboundLocalError on crash
+    summary: dict = {
+        "user_preferences": user_prefs,
+        "query": request.query,
+        "nutrition_totals": {},
+        "high_sugar_days_past_week": 0,
+        "high_sodium_days_past_week": 0
+    }
 
     try:
         for day in request.weekly_data:
@@ -648,8 +658,12 @@ def ai_assistant_summary(request: AIAssistantRequest, user: dict = Depends(get_c
             weekly_totals["sugar"] += float(day.get("sugar", 0) or 0)
             weekly_totals["sodium"] += float(day.get("sodium", 0) or 0)
             
-            if float(day.get("sugar", 0) or 0) > 50: high_sugar_days += 1
-            if float(day.get("sodium", 0) or 0) > 2300: high_sodium_days += 1
+            sugar_val = float(day.get("sugar", 0) or 0)
+            sodium_val = float(day.get("sodium", 0) or 0)
+            if sugar_val > 50: 
+                high_sugar_days = high_sugar_days + 1
+            if sodium_val > 2300: 
+                high_sodium_days = high_sodium_days + 1
 
         # Round them 
         for k in weekly_totals:
@@ -661,13 +675,9 @@ def ai_assistant_summary(request: AIAssistantRequest, user: dict = Depends(get_c
             "30_days": weekly_totals  # Use 7-day data as default for 30-day until frontend is told to fetch deeper
         }
 
-        summary = {
-            "user_preferences": user_prefs,
-            "nutrition_totals": totals,
-            "query": request.query,
-            "high_sugar_days_past_week": high_sugar_days,
-            "high_sodium_days_past_week": high_sodium_days
-        }
+        summary["nutrition_totals"] = totals
+        summary["high_sugar_days_past_week"] = high_sugar_days
+        summary["high_sodium_days_past_week"] = high_sodium_days
 
         # 4. Construct Prompt
         user_name_val = request.user_name
@@ -700,29 +710,34 @@ def ai_assistant_summary(request: AIAssistantRequest, user: dict = Depends(get_c
             parts = []
             if healthy_foods:
                 # Deduplicate and limit
-                parts.append(f"Healthy choices: {', '.join(list(dict.fromkeys(healthy_foods))[:8])}")
+                unique_healthy = list(dict.fromkeys(healthy_foods))
+                parts.append(f"Healthy choices: {', '.join(unique_healthy[:8])}")
             if risky_foods:
-                parts.append(f"Risky choices: {', '.join(list(dict.fromkeys(risky_foods))[:8])}")
+                unique_risky = list(dict.fromkeys(risky_foods))
+                parts.append(f"Risky choices: {', '.join(unique_risky[:8])}")
             if parts:
                 weekly_foods_str = ". ".join(parts)
 
-        query_lower = request.query.lower()
+        query_lower = (request.query or "").lower()
+        stats_used: dict = {}
         if "today" in query_lower:
             timeframe_label = "Today's"
-            stats_used = totals["today"]
+            stats_used = totals.get("today", {})
         elif "month" in query_lower:
             timeframe_label = "Past 30 Days"
-            stats_used = totals["30_days"]
+            stats_used = totals.get("30_days", {})
         else:
             timeframe_label = "Past 7 Days"
-            stats_used = totals["7_days"]
+            stats_used = totals.get("7_days", {})
         
         # Ensure all required keys exist in stats_used
         required_keys = ['calories', 'protein', 'carbs', 'fat', 'sugar']
+        # Use a fresh dict to ensure type safety for linter
+        final_stats: dict = dict(stats_used) 
         for key in required_keys:
-            if key not in stats_used:
-                stats_used[key] = 0.0
-
+            if key not in final_stats:
+                final_stats[key] = 0.0
+        
         prompt = f"""
 You are the Ingrelyze AI Nutrition Assistant — a friendly, concise nutrition expert.
 
@@ -734,7 +749,7 @@ USER CONTEXT:
 NUTRITION SNAPSHOT:
 - Today's foods: {today_foods_str}
 - This week: {weekly_foods_str}
-- {timeframe_label} totals: {stats_used.get('calories', 0.0)} kcal, {stats_used.get('protein', 0.0)}g protein, {stats_used.get('carbs', 0.0)}g carbs, {stats_used.get('fat', 0.0)}g fat, {stats_used.get('sugar', 0.0)}g sugar.
+- {timeframe_label} totals: {final_stats.get('calories', 0.0)} kcal, {final_stats.get('protein', 0.0)}g protein, {final_stats.get('carbs', 0.0)}g carbs, {final_stats.get('fat', 0.0)}g fat, {final_stats.get('sugar', 0.0)}g sugar.
 
 USER QUESTION: "{request.query}"
 
@@ -789,7 +804,6 @@ STRICT RESPONSE RULES:
             
             if json_match:
                 try:
-                    import json
                     json_str = json_match.group(1)
                     json_data = json.loads(json_str)
                     detected_foods = json_data.get("detected_foods", [])
@@ -807,29 +821,37 @@ STRICT RESPONSE RULES:
             
             print(f"--- AI ASSISTANT: Response received. Detected {len(detected_foods)} foods. ---")
             
+            return {
+                "success": True, 
+                "analysis": analysis_text or "I've analyzed your data, but I couldn't generate a specific response. Please try rephrasing your question.",
+                "detected_foods": detected_foods,
+                "summary_used": summary
+            }
         except Exception as api_err:
             print(f"--- AI ASSISTANT ERROR: {api_err} ---")
             
             # Log the exact error for diagnostics
-            with open("backend_ai_crash.txt", "a", encoding="utf-8") as f:
-                f.write(f"\n[{datetime.now().isoformat()}] Groq AI Error: {str(api_err)}\n")
+            try:
+                with open("backend_ai_crash.txt", "a", encoding="utf-8") as f:
+                    f.write(f"\n[{datetime.now().isoformat()}] Groq AI Error: {str(api_err)}\n")
+            except:
+                pass # Avoid crashing on logging error
             
             err_msg = str(api_err)
             if "429" in err_msg:
                 analysis_text = "The AI assistant has reached its rate limit. Please try again in a few moments."
             else:
                 analysis_text = "I'm currently experiencing high demand or connectivity issues. Please try again in a moment."
-            detected_foods = []
-
-        return {
-            "success": True, 
-            "analysis": analysis_text,
-            "detected_foods": detected_foods,
-            "summary_used": summary
-        }
+                
+            return {
+                "success": False, 
+                "analysis": analysis_text,
+                "detected_foods": [],
+                "summary_used": summary
+            }
     except Exception as e:
         # Log unexpected backend crashes
-        crash_log = f"Crash at {datetime.now().isoformat()}:\n{traceback.format_exc()}\nPayload: {request.dict()}"
+        crash_log = f"Crash at {datetime.now().isoformat()}:\n{traceback.format_exc()}\nPayload: {request.model_dump()}"
         with open("backend_ai_crash.txt", "w", encoding="utf-8") as f:
             f.write(crash_log)
         raise HTTPException(status_code=500, detail=str(e))
@@ -929,5 +951,4 @@ async def upload_medical_report(file: UploadFile = File(...), user: dict = Depen
     return {"success": True, "message": "File uploaded successfully", "path": file_path, "extracted_data": extracted_data}
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

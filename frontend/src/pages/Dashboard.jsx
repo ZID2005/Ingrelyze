@@ -12,6 +12,7 @@ import { FlowButton } from "../components/FlowButton";
 import { motion, AnimatePresence } from "motion/react";
 import GreetingText from '../components/GreetingText';
 import { ButtonSpinner, RoundSpinner, LoadingDots } from '../components/Spinner';
+import API from "../utils/api";
 import "../components/DashboardLayout.css";
 
 export function getGradeInfo(numScore) {
@@ -162,7 +163,7 @@ export default function Dashboard() {
             const token = await currentUser.getIdToken();
             const todayStr = new Date().toLocaleDateString('en-CA');
 
-            const reqUrl = "http://localhost:8000/ai-assistant";
+            const reqUrl = `${API}/ai-assistant`;
             const response = await axios.post(
                 reqUrl,
                 {
@@ -434,7 +435,7 @@ export default function Dashboard() {
 
         try {
             const token = currentUser ? await currentUser.getIdToken() : null;
-            const res = await axios.get(`/api/search?query=${encodeURIComponent(queryTerm)}`, {
+            const res = await axios.get(`${API}/search?query=${encodeURIComponent(queryTerm)}`, {
                 headers: token ? { Authorization: `Bearer ${token}` } : {}
             });
             setSearchResults(res.data);
@@ -486,7 +487,7 @@ export default function Dashboard() {
             const t2 = performance.now();
             console.log("2. Token fetch done:", t2 - t1, "ms");
 
-            const res = await axios.post("/api/analyze", payload, {
+            const res = await axios.post(`${API}/analyze`, payload, {
                 headers: token ? { Authorization: `Bearer ${token}` } : {}
             });
             const t3 = performance.now();

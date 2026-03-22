@@ -480,7 +480,7 @@ export default function HealthIDCard() {
         });
 
         const activeDays = Object.values(dailyMap).filter(d => d.calories > 0).length;
-        if (activeDays > 0) {
+        if (activeDays >= 2) {
           let totSugar = 0, totFat = 0, totSodium = 0;
           Object.values(dailyMap).forEach(d => {
              totSugar += d.sugar; totFat += d.fat; totSodium += d.sodium;
@@ -654,8 +654,8 @@ export default function HealthIDCard() {
             <div className="hid-badge-name" style={{ color: badgeInfo.color }}>{badgeInfo.label} Member</div>
             <div className="hid-badge-desc">
               {badgeInfo.improved > 0
-                ? `${badgeInfo.improved} health metric${badgeInfo.improved > 1 ? 's' : ''} improved`
-                : 'Keep tracking to earn badges!'}
+                ? `${badgeInfo.improved} health indicator${badgeInfo.improved > 1 ? 's' : ''} on track`
+                : 'Log more foods to earn your first badge!'}
             </div>
           </div>
         </div>

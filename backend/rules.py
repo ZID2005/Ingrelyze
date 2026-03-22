@@ -23,30 +23,49 @@ class RuleEngine:
             data = input_data
 
         # -----------------------------
-        # DIABETES RISK (High Sensitivity)
+        # DIABETES RISK
         # -----------------------------
+        sugar_val = data.get("sugars", 0)
+        carb_val = data.get("carbohydrates", 0)
+        
         if "Diabetes:High" in user_conditions:
-            if data.get("sugars", 0) > 15:
-                warnings.append("High sugar risk (>15g)")
-                prediction = max(prediction, 3)
+            if sugar_val > 15 or carb_val > 40:
+                reason = f"sugar={sugar_val}g" if sugar_val > 15 else f"carbs={carb_val}g"
+                warnings.append(f"High risk for Diabetes ({reason})")
+                prediction = max(prediction, 3) # Unhealthy (C)
+        elif "Diabetes:Medium" in user_conditions:
+            if sugar_val > 25 or carb_val > 60:
+                warnings.append("Moderate risk for Diabetes (High glycemic load)")
+                prediction = max(prediction, 2) # Moderate (B)
 
         # -----------------------------
-        # HYPERTENSION (High Sensitivity)
+        # HYPERTENSION
         # -----------------------------
+        sodium_val = data.get("sodium", 0)
         if "Hypertension:High" in user_conditions:
-            if data.get("sodium", 0) > 500:
-                warnings.append("High sodium risk (>500mg)")
+            if sodium_val > 500:
+                warnings.append(f"High sodium risk ({sodium_val}mg)")
                 prediction = max(prediction, 3)
+        elif "Hypertension:Medium" in user_conditions:
+            if sodium_val > 800:
+                warnings.append("Moderate sodium risk (>800mg)")
+                prediction = max(prediction, 2)
 
         # -----------------------------
-        # CHOLESTEROL (High Sensitivity)
+        # CHOLESTEROL
         # -----------------------------
+        chol_val = data.get("cholesterol", 0)
+        sat_fat_val = data.get("saturated_fats", 0)
         if "Cholesterol:High" in user_conditions:
-            if data.get("cholesterol", 0) > 60:
-                warnings.append("High cholesterol risk (>60mg)")
+            if chol_val > 60:
+                warnings.append(f"High cholesterol risk ({chol_val}mg)")
                 prediction = max(prediction, 2)
-            if data.get("saturated_fats", 0) > 10:
-                warnings.append("High saturated fat risk (>10g)")
+            if sat_fat_val > 10:
+                warnings.append(f"High saturated fat risk ({sat_fat_val}g)")
+                prediction = max(prediction, 2)
+        elif "Cholesterol:Medium" in user_conditions:
+            if chol_val > 100:
+                warnings.append("Moderate cholesterol risk (>100mg)")
                 prediction = max(prediction, 2)
 
         # -----------------------------
@@ -63,6 +82,22 @@ class RuleEngine:
         if "Goal:GainMuscle" in user_conditions:
             if data.get("protein", 0) > 20:
                 warnings.append("High protein content (>20g)")
+
+        # -----------------------------
+        # KEYWORD-BASED REFINEMENTS (Catch data omissions)
+        # -----------------------------
+        food_lower = (food_name or "").lower()
+        dessert_keywords = ['pie', 'cake', 'doughnut', 'donut', 'pastry', 'cookie', 'syrup', 'candy', 'brownie', 'sugar']
+        is_dessert = any(kw in food_lower for kw in dessert_keywords)
+        
+        if is_dessert:
+            # Desserts shouldn't be "Very Healthy" or "Healthy" if they have calories
+            if data.get("caloric_value", 0) > 150:
+                prediction = max(prediction, 2) # At least Moderate
+                if "Diabetes:High" in user_conditions or "Diabetes:Medium" in user_conditions:
+                    if "High risk for Diabetes" not in "".join(warnings):
+                        warnings.append("High glycemic risk (Dessert)")
+                    prediction = max(prediction, 3) # At least Unhealthy for Diabetics
 
         # -----------------------------
         # LACTOSE INTOLERANCE (Severe)

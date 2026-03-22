@@ -41,8 +41,9 @@ class HealthClassifier:
         y = df[self.target]
 
         # 🔧 FIX: merge rare class (4 → 3)
-        if 4 in y.value_counts() and y.value_counts()[4] < 2:
-            print("Merging rare class 4 into class 3 for stable training...")
+        counts = y.value_counts()
+        if 4 in counts and counts[4] < 3:
+            print(f"Merging rare class 4 ({counts[4]} samples) into class 3 for stability.")
             y = y.replace({4: 3})
 
         X_train, X_test, y_train, y_test = train_test_split(

@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import "./Profile.css";
 import axios from "axios";
+import API from "../utils/api";
 import GreetingText from "../components/GreetingText";
 import AnimatedText from "../components/AnimatedText";
 import LightPillar from "../components/LightPillar";
@@ -139,7 +140,7 @@ export default function Profile() {
                 formData.append("file", selectedFile);
 
                 const token = await currentUser.getIdToken();
-                const res = await axios.post("http://localhost:8000/upload-medical-report", formData, {
+                const res = await axios.post(`${API}/upload-medical-report`, formData, {
                     headers: {
                         "Content-Type": "multipart/form-data",
                         "Authorization": `Bearer ${token}`
