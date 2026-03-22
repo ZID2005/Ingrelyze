@@ -5,9 +5,9 @@ from typing import List, Optional
 import pandas as pd
 import difflib
 import firebase_admin
-from firebase_admin import credentials, auth, firestore
+from firebase_admin import auth, firestore
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
 import traceback
 import time
@@ -98,8 +98,6 @@ def get_current_user(authorization: Optional[str] = Header(None)):
         # Bypassing the hanging `auth.verify_id_token` because missing GCP credentials
         # causes it to poll network metadata servers endlessly and timeout after 5 seconds.
         # We manually decode the JWT payload string locally instantly instead.
-        import base64
-        import json
         payload_b64 = token.split('.')[1]
         payload_b64 += '=' * (-len(payload_b64) % 4)
         decoded = json.loads(base64.urlsafe_b64decode(payload_b64).decode('utf-8'))
@@ -144,13 +142,14 @@ def parse_food_input(text: str):
                 keep_as_is = ['fries', 'chips', 'oats', 'beans', 'lentils', 'molasses', 'hummus', 'asparagus', 'rice', 'corn', 'pasta']
                 
                 if not any(k in lower_food for k in keep_as_is):
+                    food_str = str(raw_food)
                     if lower_food.endswith('s') and not lower_food.endswith('ss'):
                         if lower_food.endswith('oes') or lower_food.endswith('ches') or lower_food.endswith('shes'):
-                            raw_food = raw_food[:-2]
+                            raw_food = food_str[:-2]
                         elif lower_food.endswith('ies'):
-                            raw_food = raw_food[:-3] + 'y'
+                            raw_food = food_str[:-3] + 'y'
                         else:
-                            raw_food = raw_food[:-1]
+                            raw_food = food_str[:-1]
                             
                 parsed_items.append({
                     "original": trimmed,
@@ -188,7 +187,7 @@ class NutritionInput(BaseModel):
     nutrition_density: float
     
     # User Conditions (Optional)
-    conditions: Optional[List[str]] = []
+    conditions: List[str] = []
 
 class UserPreferences(BaseModel):
     diabetes_level: Optional[str] = "Low"
@@ -435,7 +434,6 @@ def analyze_food(request: AnalyzeRequest, user: dict = Depends(get_current_user)
 
     print(f"[DEBUG Analyze] Authenticated userId: {user_id}")
     print(f"[DEBUG Analyze] Food input received: '{request.query}'")
-    import time
     t0 = time.time()
 
     try:
@@ -552,7 +550,7 @@ def get_recent_foods(user: dict = Depends(get_current_user)):
                  .where(filter=firestore.FieldFilter("userId", "==", user_id))\
                  .get()
                  
-        raw_entries = []
+        raw_entries: List[dict] = []
         for doc in docs:
             d = doc.to_dict()
             d['id'] = doc.id
@@ -587,9 +585,9 @@ def get_recent_foods(user: dict = Depends(get_current_user)):
 @app.get("/dashboard/today-total")
 def get_today_total(user: dict = Depends(get_current_user)):
     user_id = user.get("uid")
-    # Return 0s if unauthenticated
+    # Return 0.0s if unauthenticated
     if not user_id:
-        return {"success": True, "data": {"calories": 0, "protein": 0, "carbs": 0, "fat": 0, "sugar": 0}}
+        return {"success": True, "data": {"calories": 0.0, "protein": 0.0, "carbs": 0.0, "fat": 0.0, "sugar": 0.0}}
         
     try:
         today_str = datetime.now().strftime("%Y-%m-%d")
@@ -600,11 +598,11 @@ def get_today_total(user: dict = Depends(get_current_user)):
                  .where(filter=firestore.FieldFilter("date", "==", today_str))\
                  .get()
                  
-        total_calories = 0
-        total_protein = 0
-        total_carbs = 0
-        total_fat = 0
-        total_sugar = 0
+        total_calories = 0.0
+        total_protein = 0.0
+        total_carbs = 0.0
+        total_fat = 0.0
+        total_sugar = 0.0
         
         for doc in docs:
             d = doc.to_dict()
@@ -617,16 +615,16 @@ def get_today_total(user: dict = Depends(get_current_user)):
         return {
             "success": True, 
             "data": {
-                "calories": round(total_calories, 1),
-                "protein": round(total_protein, 1),
-                "carbs": round(total_carbs, 1),
-                "fat": round(total_fat, 1),
-                "sugar": round(total_sugar, 1)
+                "calories": round(float(total_calories), 1),
+                "protein": round(float(total_protein), 1),
+                "carbs": round(float(total_carbs), 1),
+                "fat": round(float(total_fat), 1),
+                "sugar": round(float(total_sugar), 1)
             }
         }
     except Exception as e:
         print(f"Error fetching today's total: {e}")
-        return {"success": False, "message": str(e), "data": {"calories": 0, "protein": 0, "carbs": 0, "fat": 0, "sugar": 0}}
+        return {"success": False, "message": str(e), "data": {"calories": 0.0, "protein": 0.0, "carbs": 0.0, "fat": 0.0, "sugar": 0.0}}
 
 @app.post("/ai-assistant")
 def ai_assistant_summary(request: AIAssistantRequest, user: dict = Depends(get_current_user)):
@@ -634,15 +632,14 @@ def ai_assistant_summary(request: AIAssistantRequest, user: dict = Depends(get_c
     if not user_id:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
+    user_prefs = request.user_preferences or {}
+    daily_totals = request.daily_totals or {"calories": 0.0, "protein": 0.0, "carbs": 0.0, "fat": 0.0, "sugar": 0.0, "sodium": 0.0}
+    # Calculate weekly totals from the frontend's weekly_data array
+    weekly_totals = {"calories": 0.0, "protein": 0.0, "carbs": 0.0, "fat": 0.0, "sugar": 0.0, "sodium": 0.0}
+    high_sugar_days = 0
+    high_sodium_days = 0
+
     try:
-        user_prefs = request.user_preferences or {}
-        daily_totals = request.daily_totals or {"calories": 0, "protein": 0, "carbs": 0, "fat": 0, "sugar": 0, "sodium": 0}
-        
-        # Calculate weekly totals from the frontend's weekly_data array
-        weekly_totals = {"calories": 0, "protein": 0, "carbs": 0, "fat": 0, "sugar": 0, "sodium": 0}
-        high_sugar_days = 0
-        high_sodium_days = 0
-        
         for day in request.weekly_data:
             weekly_totals["calories"] += float(day.get("calories", 0) or 0)
             weekly_totals["protein"] += float(day.get("protein", 0) or 0)
@@ -656,7 +653,7 @@ def ai_assistant_summary(request: AIAssistantRequest, user: dict = Depends(get_c
 
         # Round them 
         for k in weekly_totals:
-            weekly_totals[k] = round(weekly_totals[k], 1)
+            weekly_totals[k] = round(float(weekly_totals[k]), 1)
             
         totals = {
             "today": daily_totals,
@@ -687,22 +684,27 @@ def ai_assistant_summary(request: AIAssistantRequest, user: dict = Depends(get_c
         if request.recent_foods:
             today_foods_str = ", ".join([get_food_label(f) for f in request.recent_foods])
 
-        # Extract food names and warnings logged this past week
+        # Extract ONLY food names (NOT raw data) for weekly context
         weekly_foods_str = "None logged."
         if request.weekly_foods:
-            weekly_summaries = []
+            healthy_foods = []
+            risky_foods = []
             for f in request.weekly_foods:
-                day = f.get("date", "Unknown Date")
                 name = get_food_label(f)
                 level = f.get("healthLevel", 0)
-                # Map level to a human warning if it's 3 or 4
-                warning_label = ""
-                if level == 3: warning_label = " (Warning: Moderate Risk)"
-                elif level >= 4: warning_label = " (Warning: High Risk)"
-                weekly_summaries.append(f"{day}: {name}{warning_label}")
+                if level >= 3:
+                    risky_foods.append(name)
+                else:
+                    healthy_foods.append(name)
             
-            if weekly_summaries:
-                weekly_foods_str = " | ".join(weekly_summaries)
+            parts = []
+            if healthy_foods:
+                # Deduplicate and limit
+                parts.append(f"Healthy choices: {', '.join(list(dict.fromkeys(healthy_foods))[:8])}")
+            if risky_foods:
+                parts.append(f"Risky choices: {', '.join(list(dict.fromkeys(risky_foods))[:8])}")
+            if parts:
+                weekly_foods_str = ". ".join(parts)
 
         query_lower = request.query.lower()
         if "today" in query_lower:
@@ -719,37 +721,32 @@ def ai_assistant_summary(request: AIAssistantRequest, user: dict = Depends(get_c
         required_keys = ['calories', 'protein', 'carbs', 'fat', 'sugar']
         for key in required_keys:
             if key not in stats_used:
-                stats_used[key] = 0
+                stats_used[key] = 0.0
 
         prompt = f"""
-You are the Ingrelyze AI Nutrition Assistant. Your task is to provide helpful, context-aware nutrition advice.
+You are the Ingrelyze AI Nutrition Assistant — a friendly, concise nutrition expert.
 
 USER CONTEXT:
 - Name: {user_name_val}
-- Health Profile: {weight_val}kg, Goal: {weight_goal}
+- Weight: {weight_val}kg | Goal: {weight_goal}
 - Risk Factors: Diabetes: {diabetes}, Hypertension: {hypertension}
 
-NUTRITION HISTORY (Analyze these carefully to answer questions about what the user ate):
-- Logged TODAY: {today_foods_str}
-- Logged THIS WEEK (Past 7 Days): {weekly_foods_str}
-- Numeric Totals for {timeframe_label}: {stats_used.get('calories', 0)} kcal, {stats_used.get('protein', 0)}g protein, {stats_used.get('carbs', 0)}g carbs, {stats_used.get('fat', 0)}g fat, {stats_used.get('sugar', 0)}g sugar.
+NUTRITION SNAPSHOT:
+- Today's foods: {today_foods_str}
+- This week: {weekly_foods_str}
+- {timeframe_label} totals: {stats_used.get('calories', 0.0)} kcal, {stats_used.get('protein', 0.0)}g protein, {stats_used.get('carbs', 0.0)}g carbs, {stats_used.get('fat', 0.0)}g fat, {stats_used.get('sugar', 0.0)}g sugar.
 
 USER QUESTION: "{request.query}"
 
-RESPONSE RULES:
-1. If the query is just a greeting, stay short and friendly.
-2. If the user mentions eating NEW food (e.g. "I just had X"):
-   - You MUST estimate macros and include a JSON block at the end:
-     ```json
-     {{ "detected_foods": [ {{ "name": "Food Name", "calories": 123, "protein": 10, "carbs": 20, "fat": 5, "sugar": 2 }} ] }}
-     ```
-3. If no new food is reported, do not include the JSON block.
-
-STRICT RESPONSE STRUCTURE:
-1. Short direct answer.
-2. Data-driven explanation using history.
-3. One actionable tip.
-4. (Optional) The JSON block.
+STRICT RESPONSE RULES:
+1. NEVER output raw data, JSON objects, arrays, numbers lists, or database fields. The user is NOT a developer.
+2. BREVITY: Simple questions = 1-2 sentence answer. Complex advice = max 4 short sentences.
+3. STRUCTURE: Use short paragraphs. If listing items, use a clean numbered list (1. 2. 3.) — max 5 items.
+4. DIET PLANS: When asked for a diet plan or meal suggestions, give a clear, actionable plan with specific meals. Format as a simple numbered list of meals/snacks.
+5. TONE: Warm, professional, supportive. Address the user by first name. No jargon.
+6. NEW FOODS: ONLY if the user says they ATE something new, append this JSON at the very end (hidden from user): ```json {{ "detected_foods": [ {{ "name": "Food Name", "calories": 123, "protein": 10, "carbs": 20, "fat": 5, "sugar": 2 }} ] }} ```
+   If no new food is mentioned, do NOT include any JSON.
+7. ABSOLUTELY FORBIDDEN: Do not echo back raw food entry data, calorie numbers from the database, or any structured data. Synthesize insights instead.
 """
         # 5. Call Groq
         if not groq_client:
@@ -766,7 +763,7 @@ STRICT RESPONSE STRUCTURE:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a helpful nutrition assistant for 'Ingrelyze'. If the user reports eating something, you must include the JSON 'detected_foods' block at the end of your response."
+                        "content": "You are a warm, professional nutrition assistant for the app 'Ingrelyze'. Keep responses short and clean — never dump raw data, JSON, or database fields to the user. Use plain language. When suggesting diet plans, use a clear numbered list of specific meals. If the user reports eating something NEW, silently append a detected_foods JSON block at the end."
                     },
                     {
                         "role": "user",
@@ -775,7 +772,7 @@ STRICT RESPONSE STRUCTURE:
                 ],
                 model="llama-3.3-70b-versatile",
                 temperature=0.7,
-                max_tokens=1024,
+                max_tokens=512,
                 top_p=1,
                 stream=False,
             )
@@ -786,15 +783,27 @@ STRICT RESPONSE STRUCTURE:
             detected_foods = []
             analysis_text = full_content
             
-            json_match = re.search(r'```json\s*(\{.*?\})\s*```', full_content, re.DOTALL)
+            # 6. Extract JSON if present (Handles both backticked and raw JSON cases)
+            json_pattern = r'({[\s\n]*"detected_foods"[\s\S]*?})'
+            json_match = re.search(json_pattern, full_content, re.DOTALL)
+            
             if json_match:
                 try:
                     import json
-                    json_data = json.loads(json_match.group(1))
+                    json_str = json_match.group(1)
+                    json_data = json.loads(json_str)
                     detected_foods = json_data.get("detected_foods", [])
-                    analysis_text = full_content.replace(json_match.group(0), "").strip()
+                    
+                    # Remove the JSON part from the response text (even if backticks are around it)
+                    # Use a broader replacement to catch the markdown block if it exists
+                    markdown_block_pattern = r'```json[\s\S]*?' + re.escape(json_str) + r'[\s\S]*?```'
+                    if re.search(markdown_block_pattern, full_content):
+                        analysis_text = re.sub(markdown_block_pattern, "", full_content).strip()
+                    else:
+                        analysis_text = full_content.replace(json_str, "").strip()
                 except Exception as json_err:
                     print(f"Failed to parse detected_foods JSON: {json_err}")
+                    analysis_text = full_content # Fallback to original if parse fails
             
             print(f"--- AI ASSISTANT: Response received. Detected {len(detected_foods)} foods. ---")
             
@@ -887,21 +896,6 @@ async def upload_medical_report(file: UploadFile = File(...), user: dict = Depen
                 }
             ]
         
-        print(f"DEBUG: Processing medical report with model {model_to_use}...")
-        try:
-            chat_completion = groq_client.chat.completions.create(
-                messages=messages,
-                model=model_to_use,
-                response_format={"type": "json_object"}
-            )
-            extracted_data = json.loads(chat_completion.choices[0].message.content)
-            print(f"DEBUG: Extracted Data: {extracted_data}")
-        except Exception as ai_err:
-            print(f"ERROR: Groq AI Processing failed: {ai_err}")
-            if hasattr(ai_err, 'response'):
-                print(f"ERROR DETAILS: {ai_err.response.text}")
-            raise Exception(f"AI error while analyzing report: {ai_err}")
-
         print(f"--- MEDICAL ANALYZER: Using {model_to_use} for {file.filename} ---")
         t_start = time.time()
         

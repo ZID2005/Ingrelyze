@@ -1,9 +1,10 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
-import SplitText from "../components/SplitText";
+import GreetingText from "../components/GreetingText";
 import BlurText from "../components/BlurText";
 import WelcomeScreen from "../components/WelcomeScreen";
+import { ButtonSpinner } from '../components/Spinner';
 
 import logo from "../assets/logo.svg";
 
@@ -111,7 +112,7 @@ export default function Login() {
                     </div>
 
                     <button disabled={loading} type="submit" className="btn-white-primary">
-                        {loading ? "Signing In..." : "Sign In"}
+                        {loading ? <ButtonSpinner text="Signing In..." color="#1e293b" /> : "Sign In"}
                     </button>
                 </form>
 

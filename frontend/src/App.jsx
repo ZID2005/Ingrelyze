@@ -9,6 +9,7 @@ import WeeklyReport from "./pages/WeeklyReport";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Profile from "./pages/Profile";
+import HealthIDCard from "./pages/HealthIDCard";
 import HealthContext from "./pages/HealthContext";
 import AuthLayout from "./components/AuthLayout";
 import DarkVeil from "./components/DarkVeil";
@@ -40,6 +41,14 @@ function App() {
                 }
               />
               {/* Health Context moved to AuthLayout for full screen wizard */}
+              <Route
+                path="/health-id"
+                element={
+                  <PrivateRoute>
+                    <HealthIDCard />
+                  </PrivateRoute>
+                }
+              />
             </Route>
 
             {/* Standalone Profile Route (No Navbar, Full Screen) */}

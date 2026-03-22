@@ -9,6 +9,9 @@ import GlassIcons from "../components/GlassIcons";
 import { ChatBubble, ChatBubbleMessage, ChatBubbleAvatar } from "../components/ChatBubble";
 import { GlassButton } from "../components/GlassButton";
 import { FlowButton } from "../components/FlowButton";
+import { motion, AnimatePresence } from "motion/react";
+import GreetingText from '../components/GreetingText';
+import { ButtonSpinner, RoundSpinner, LoadingDots } from '../components/Spinner';
 import "../components/DashboardLayout.css";
 
 export function getGradeInfo(numScore) {
@@ -30,6 +33,7 @@ export default function Dashboard() {
     // Latest Analysis State
     const [latestResult, setLatestResult] = useState(null);
     const [latestNutrients, setLatestNutrients] = useState(null);
+    const [latestFoodName, setLatestFoodName] = useState('');
     const [ringOffset, setRingOffset] = useState(2 * Math.PI * 62);
 
     // Search & UI State
@@ -41,6 +45,25 @@ export default function Dashboard() {
     const [chatMessages, setChatMessages] = useState([]); // Array of { text, sender: 'user' | 'ai' }
     const [isAiLoading, setIsAiLoading] = useState(false);
     const chatEndRef = React.useRef(null);
+
+    useEffect(() => {
+        if (!currentUser) return;
+        const ref = doc(db, "users", currentUser.uid);
+        const unsubscribe = onSnapshot(ref, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                setUserPrefs(data);
+                // If there's a daily tracker, use it
+                if (data.dailyTracker) {
+                    setDailyTotals(data.dailyTracker);
+                }
+            }
+        }, (err) => {
+            console.error("Error syncing user profile:", err);
+        });
+
+        return () => unsubscribe();
+    }, [currentUser, db]);
 
     // Auto-scroll chat to bottom
     useEffect(() => {
@@ -56,6 +79,74 @@ export default function Dashboard() {
     const [dailyTotals, setDailyTotals] = useState({ calories: 0, protein: 0, carbs: 0, fat: 0, sugar: 0 });
     const [weeklyData, setWeeklyData] = useState([]); // Chart data
     const [weeklyEntries, setWeeklyEntries] = useState([]); // Past 7 days objects
+
+    // Real-time Clock State
+    const [currentTime, setCurrentTime] = useState(new Date());
+
+    const firstName = useMemo(() => {
+        // Prefer Firestore name, then Firebase Auth name, then fallback
+        const nameSource = userPrefs?.name || currentUser?.displayName || "";
+        const parts = nameSource.trim().split(/\s+/);
+        return parts[0] || "User";
+    }, [userPrefs, currentUser]);
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 10000); // Update every 10 seconds for smoothness
+        return () => clearInterval(timer);
+    }, []);
+
+    const greeting = useMemo(() => {
+        const hour = currentTime.getHours();
+        if (hour < 12) return "Morning";
+        if (hour < 18) return "Afternoon";
+        return "Evening";
+    }, [currentTime]);
+
+    const formattedTime = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const formattedDate = currentTime.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+    // Health improvement logic
+    const healthStats = useMemo(() => {
+        if (!allEntries || allEntries.length === 0) return { improvement: 0, status: 'starting' };
+
+        const now = new Date();
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+        const formatDate = (d) => d.toISOString().split('T')[0];
+        const thisWeekStr = formatDate(oneWeekAgo);
+        const lastWeekStr = formatDate(twoWeeksAgo);
+
+        const thisWeekEntries = allEntries.filter(e => e.date >= thisWeekStr);
+        const lastWeekEntries = allEntries.filter(e => e.date >= lastWeekStr && e.date < thisWeekStr);
+
+        if (thisWeekEntries.length === 0) return { improvement: 0, status: 'no_data' };
+
+        const getAvgScore = (entries) => {
+            if (entries.length === 0) return null;
+            const sum = entries.reduce((acc, e) => {
+                const score = e.healthLevel !== undefined ? e.healthLevel : (e.analysis?.health_level || 0);
+                return acc + (100 - (score * 25)); // Map 0-4 to 100-0
+            }, 0);
+            return sum / entries.length;
+        };
+
+        const currentAvg = getAvgScore(thisWeekEntries);
+        const lastAvg = getAvgScore(lastWeekEntries);
+
+        if (lastAvg === null || lastAvg === 0) {
+            // If no data last week, but we have data this week, we are "performing better" relative to starting
+            return { improvement: 12, status: 'positive' }; // Default 12% as per user reference if starting out
+        }
+
+        const improvement = Math.round(((currentAvg - lastAvg) / lastAvg) * 100);
+        return {
+            improvement: Math.abs(improvement),
+            status: improvement >= 0 ? 'positive' : 'negative'
+        };
+    }, [allEntries]);
 
     async function handleAiSubmit(e) {
         if (e.key && e.key !== 'Enter') return;
@@ -93,7 +184,12 @@ export default function Dashboard() {
             );
 
             if (response.data && response.data.success) {
-                const cleanText = response.data.analysis.replace(/\*\*/g, '');
+                let cleanText = response.data.analysis.replace(/\*\*/g, '');
+                
+                // Final Safety Layer: Remove any remaining JSON block that might have slipped through
+                const jsonPattern = /{[\s\n]*"detected_foods"[\s\S]*?}/g;
+                cleanText = cleanText.replace(jsonPattern, '').trim();
+
                 setChatMessages(prev => [...prev, { text: cleanText, sender: 'ai' }]);
 
                 // 2. Persist any detected foods to Firestore
@@ -299,6 +395,7 @@ export default function Dashboard() {
             if (mostRecent.analysisResult && mostRecent.nutrients) {
                 setLatestResult(mostRecent.analysisResult);
                 setLatestNutrients(mostRecent.nutrients);
+                setLatestFoodName(mostRecent.name || '');
             }
         }
     }, [recentlyAnalyzed, latestResult]);
@@ -398,6 +495,7 @@ export default function Dashboard() {
             if (res.data.success) {
                 setLatestNutrients(res.data.analysis);
                 setLatestResult(res.data.rating);
+                setLatestFoodName(res.data.savedEntry?.foodName || searchTerm);
                 setSearchTerm(""); // Clear input on success
 
                 const t4 = performance.now();
@@ -688,6 +786,58 @@ export default function Dashboard() {
         return insights;
     }
 
+    // Format AI response text into structured JSX
+    function formatAIText(text) {
+        if (!text) return text;
+        const lines = text.split('\n').filter(line => line.trim() !== '');
+        const elements = [];
+        let listItems = [];
+
+        const flushList = () => {
+            if (listItems.length > 0) {
+                elements.push(
+                    <div key={`list-${elements.length}`} style={{ display: 'flex', flexDirection: 'column', gap: '6px', margin: '6px 0' }}>
+                        {listItems.map((item, idx) => (
+                            <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                                <span style={{ color: '#3b82f6', fontWeight: 700, fontSize: '0.85rem', minWidth: '18px', flexShrink: 0 }}>{item.marker}</span>
+                                <span style={{ fontSize: '0.85rem', lineHeight: 1.5 }}>{item.text}</span>
+                            </div>
+                        ))}
+                    </div>
+                );
+                listItems = [];
+            }
+        };
+
+        lines.forEach((line, i) => {
+            const trimmed = line.trim();
+            // Numbered list: "1. ...", "2) ..." etc.
+            const numberedMatch = trimmed.match(/^(\d+)[.):]\s+(.*)/);
+            // Bullet list
+            const bulletMatch = trimmed.match(/^[-•*]\s+(.*)/);
+
+            if (numberedMatch) {
+                listItems.push({ marker: `${numberedMatch[1]}.`, text: numberedMatch[2] });
+            } else if (bulletMatch) {
+                listItems.push({ marker: '•', text: bulletMatch[1] });
+            } else {
+                flushList();
+                // Bold text between ** **
+                const parts = trimmed.split(/(\*\*.*?\*\*)/g).map((part, pi) => {
+                    if (part.startsWith('**') && part.endsWith('**')) {
+                        return <strong key={pi} style={{ fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
+                    }
+                    return part;
+                });
+                elements.push(
+                    <p key={`p-${i}`} style={{ margin: '4px 0', fontSize: '0.85rem', lineHeight: 1.55 }}>{parts}</p>
+                );
+            }
+        });
+        flushList();
+        return <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>{elements}</div>;
+    }
+
     const healthImpacts = userPrefs && latestNutrients
         ? calculateHealthImpact(displayNutrients, userPrefs, searchTerm || (recentlyAnalyzed[0]?.name || ""))
         : [];
@@ -733,6 +883,74 @@ export default function Dashboard() {
         <div className="dashboard-layout">
             <main className="dashboard-main">
                 <div className="dashboard-grid">
+
+                    {/* DASHBOARD HEADER: GREETING & CLOCK */}
+                    <div className="dashboard-header-modern" style={{ gridColumn: '1 / -1', marginBottom: '2rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1rem' }}>
+                            <div style={{ textAlign: 'left', flex: 1 }}>
+                                <GreetingText
+                                    key={`${greeting}-${firstName}`}
+                                    text={`${greeting}, ${firstName}.`}
+                                    className="greeting-split-text"
+                                    delay={40}
+                                    duration={1.2}
+                                    ease="power2.out"
+                                    textAlign="left"
+                                    tag="h1"
+                                    enableScrollTrigger={false}
+                                    style={{ 
+                                        fontSize: '3.5rem', 
+                                        fontWeight: 800, 
+                                        color: '#1e293b', 
+                                        margin: 0, 
+                                        letterSpacing: '-0.015em',
+                                        lineHeight: 1.3,
+                                        paddingBottom: '0.15em',
+                                        display: 'block'
+                                    }}
+                                />
+                                <motion.p 
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ delay: 0.3, duration: 0.8 }}
+                                    style={{ 
+                                        fontSize: '1.125rem', 
+                                        color: '#64748b', 
+                                        marginTop: '0.75rem', 
+                                        fontWeight: 500 
+                                    }}
+                                >
+                                    Your metabolic health is <strong style={{ color: healthStats.status === 'positive' ? '#10b981' : '#ef4444', fontWeight: 700 }}>{healthStats.improvement}% {healthStats.status === 'positive' ? 'healthier' : 'lower'}</strong> than last week.
+                                </motion.p>
+                            </div>
+
+                            <motion.div 
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.8, ease: "easeOut" }}
+                                style={{ textAlign: 'right' }}
+                            >
+                                <div style={{ 
+                                    fontSize: '2.5rem', 
+                                    fontWeight: 700, 
+                                    color: '#1e293b', 
+                                    letterSpacing: '-0.02em' 
+                                }}>
+                                    {formattedTime}
+                                </div>
+                                <div style={{ 
+                                    fontSize: '1rem', 
+                                    color: '#94a3b8', 
+                                    fontWeight: 600, 
+                                    textTransform: 'uppercase', 
+                                    letterSpacing: '0.05em',
+                                    marginTop: '0.25rem'
+                                }}>
+                                    {formattedDate}
+                                </div>
+                            </motion.div>
+                        </div>
+                    </div>
 
                     {/* LEFT COLUMN: Input & Analysis */}
                     <div className="dashboard-left-col">
@@ -793,7 +1011,7 @@ export default function Dashboard() {
                                     disabled={loading}
                                     className="btn-analyze-glass"
                                 >
-                                    {loading ? "Analyzing..." : "Analyze Health Impact"}
+                                    {loading ? <ButtonSpinner text="Analyzing..." color="#ffffff" /> : "Analyze Health Impact"}
                                 </GlassButton>
                             </div>
                             {error && <div style={{ color: '#ef4444', marginTop: '1rem', textAlign: 'center', fontSize: '0.9rem' }}>{error}</div>}
@@ -810,9 +1028,49 @@ export default function Dashboard() {
                         {hasData && (
                             <>
                                 {/* B. ANALYSIS RESULTS CARD */}
-                                <div className="card result-card">
-                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <div className="card result-card" style={{ position: 'relative' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                         <h3>Analysis Result</h3>
+                                        {latestFoodName && (
+                                            <div style={{
+                                                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                                background: latestResult
+                                                    ? `${getGradeInfo(latestResult.health_level).bg}18`
+                                                    : 'rgba(241,245,249,0.9)',
+                                                border: `1.5px solid ${latestResult ? `${getGradeInfo(latestResult.health_level).bg}50` : '#e2e8f0'}`,
+                                                borderRadius: '100px',
+                                                padding: '5px 14px 5px 8px',
+                                                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                                                transition: 'all 0.3s ease',
+                                                maxWidth: '220px',
+                                            }}>
+                                                <span style={{
+                                                    background: latestResult
+                                                        ? getGradeInfo(latestResult.health_level).bg
+                                                        : '#94a3b8',
+                                                    color: '#fff',
+                                                    borderRadius: '100px',
+                                                    padding: '2px 10px',
+                                                    fontSize: '0.72rem',
+                                                    fontWeight: 700,
+                                                    letterSpacing: '0.03em',
+                                                    textTransform: 'uppercase',
+                                                    flexShrink: 0,
+                                                }}>
+                                                    {latestResult ? getGradeInfo(latestResult.health_level).grade : '–'}
+                                                </span>
+                                                <span style={{
+                                                    fontSize: '0.82rem',
+                                                    fontWeight: 600,
+                                                    color: '#334155',
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap',
+                                                }}>
+                                                    {latestFoodName}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {latestResult ? (
@@ -922,7 +1180,14 @@ export default function Dashboard() {
                                     ) : (
                                         <div className="empty-state" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>
                                             <div style={{ fontSize: '2rem', marginBottom: '1rem', opacity: 0.5 }}>📊</div>
-                                            <p>{loading ? "Analyzing food..." : "Start by analyzing a food to see results here."}</p>
+                                            {loading ? (
+                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                                                    <RoundSpinner size="lg" color="#3b82f6" />
+                                                    <p>Analyzing food...</p>
+                                                </div>
+                                            ) : (
+                                                <p>Start by analyzing a food to see results here.</p>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -1183,7 +1448,7 @@ export default function Dashboard() {
                                                 <span style={{ fontSize: '1.25rem' }}>✨</span> AI Nutrition Assistant
                                             </h3>
 
-                                            <div style={{
+                                            <div className="ai-chat-scroll" style={{
                                                 width: '100%',
                                                 height: '240px',
                                                 background: 'rgba(255, 255, 255, 0.3)',
@@ -1205,7 +1470,7 @@ export default function Dashboard() {
                                                             <ChatBubble key={i} variant={msg.sender === 'user' ? 'sent' : 'received'}>
                                                                 {msg.sender === 'ai' && <ChatBubbleAvatar fallback="✨" />}
                                                                 <ChatBubbleMessage variant={msg.sender === 'user' ? 'sent' : 'received'}>
-                                                                    {msg.text}
+                                                                    {msg.sender === 'ai' ? formatAIText(msg.text) : msg.text}
                                                                 </ChatBubbleMessage>
                                                             </ChatBubble>
                                                         ))}

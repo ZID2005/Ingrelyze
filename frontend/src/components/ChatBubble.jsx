@@ -1,5 +1,6 @@
 import React from "react";
 import "./ChatBubble.css";
+import { LoadingDots } from "./Spinner";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -86,9 +87,7 @@ export function ChatBubbleActionWrapper({
 export function MessageLoading() {
     return (
         <div className="chat-bubble-loading">
-            <div className="chat-bubble-dot"></div>
-            <div className="chat-bubble-dot"></div>
-            <div className="chat-bubble-dot"></div>
+            <LoadingDots variant="pulse" color="#3b82f6" size="7px" />
         </div>
     );
 }

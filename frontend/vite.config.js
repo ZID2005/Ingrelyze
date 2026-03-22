@@ -13,4 +13,12 @@ export default defineConfig({
       },
     },
   },
+  optimizeDeps: {
+    exclude: ['@react-three/rapier', '@dimforge/rapier3d-compat'],
+  },
+  build: {
+    rollupOptions: {
+      plugins: [],
+    },
+  },
 })

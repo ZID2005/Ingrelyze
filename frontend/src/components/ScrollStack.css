@@ -1,0 +1,30 @@
+.scroll-stack-scroller {
+    width: 100%;
+}
+
+.scroll-stack-scroller:not(.window-scroll) {
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.scroll-stack-inner {
+    position: relative;
+    width: 100%;
+    min-height: 100%;
+}
+
+.scroll-stack-card {
+    position: relative;
+    width: 100%;
+    z-index: 1;
+    transform-origin: top center;
+    will-change: transform, filter;
+    backface-visibility: hidden;
+}
+
+.scroll-stack-end {
+    height: 1px;
+    width: 100%;
+    visibility: hidden;
+}

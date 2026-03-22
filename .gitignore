@@ -39,6 +39,9 @@ backend/backend_ai_crash.txt
 backend/model.joblib
 backend/*.json
 backend/*.txt
+!backend/requirements.txt
+!backend/config.py
+!backend/api.py
 
 # --- Environment Variables (CRITICAL) ---
 .env

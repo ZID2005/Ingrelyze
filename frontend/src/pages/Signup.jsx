@@ -1,10 +1,14 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
+import { updateProfile } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { db } from "../firebase";
 
 import logo from "../assets/logo.svg";
 import BlurText from "../components/BlurText";
 import WelcomeScreen from "../components/WelcomeScreen";
+import { ButtonSpinner } from '../components/Spinner';
 
 export default function Signup() {
     const firstNameRef = useRef();
@@ -35,9 +39,22 @@ export default function Signup() {
         try {
             setError("");
             setLoading(true);
-            setLoading(true);
-            await signup(emailRef.current.value, passwordRef.current.value);
-            // Ideally update profile with first/last name here if supported by backend/firebase structure
+
+            const userCred = await signup(emailRef.current.value, passwordRef.current.value);
+            
+            const fullName = `${firstNameRef.current.value} ${lastNameRef.current.value}`.trim();
+            
+            if (userCred && userCred.user) {
+                await updateProfile(userCred.user, {
+                    displayName: fullName
+                });
+
+                // Initialize Firestore user document with name
+                await setDoc(doc(db, "users", userCred.user.uid), {
+                    name: fullName
+                }, { merge: true });
+            }
+
             setShowWelcome(true);
         } catch (err) {
             setError("Failed to create an account: " + err.message);
@@ -118,7 +135,7 @@ export default function Signup() {
                     </div>
 
                     <button disabled={loading} type="submit" className="btn-white-primary" style={{ marginTop: '0' }}>
-                        {loading ? "Creating Account..." : "Create account"}
+                        {loading ? <ButtonSpinner text="Creating Account..." color="#1e293b" /> : "Create account"}
                     </button>
                 </form>
 

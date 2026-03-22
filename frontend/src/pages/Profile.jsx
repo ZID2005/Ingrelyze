@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import "./Profile.css";
 import axios from "axios";
-import SplitText from "../components/SplitText";
+import GreetingText from "../components/GreetingText";
 import AnimatedText from "../components/AnimatedText";
 import LightPillar from "../components/LightPillar";
 
@@ -15,6 +15,9 @@ export default function Profile() {
     const navigate = useNavigate();
 
     const [preferences, setPreferences] = useState({
+        name: "",
+        age: "",
+        gender: "Prefer not to say",
         weightGoal: "maintain",
         height: "",
         weight: "",
@@ -39,7 +42,14 @@ export default function Profile() {
                 const docRef = doc(db, "users", currentUser.uid);
                 const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
-                    setPreferences(prev => ({ ...prev, ...docSnap.data() }));
+                    const data = docSnap.data();
+                    setPreferences(prev => ({ 
+                        ...prev, 
+                        ...data,
+                        name: data.name || currentUser.displayName || "" 
+                    }));
+                } else if (currentUser.displayName) {
+                    setPreferences(prev => ({ ...prev, name: currentUser.displayName }));
                 }
             } catch (err) {
                 console.error("Failed to load profile:", err);
@@ -245,25 +255,23 @@ export default function Profile() {
                             marginBottom: '0.4rem'
                         }}>Your Health Profile</span>
                         <div style={{ pointerEvents: 'auto' }}>
-                            {currentUser?.displayName ? (
-                                <SplitText
-                                    text={currentUser.displayName}
+                            {preferences.name || currentUser?.displayName ? (
+                                <GreetingText
+                                    key={`profile-name-${preferences.name || currentUser.displayName}`}
+                                    text={preferences.name || currentUser.displayName}
                                     delay={40}
                                     duration={1.2}
                                     ease="power2.out"
-                                    threshold={0}
-                                    rootMargin="0px"
                                     className="profile-shiny-name"
                                     style={{ overflow: 'visible' }}
                                 />
                             ) : (
-                                <SplitText
+                                <GreetingText
+                                    key={`profile-email-${currentUser?.email}`}
                                     text={currentUser?.email?.split('@')[0] || "User"}
                                     delay={40}
                                     duration={1.2}
                                     ease="power2.out"
-                                    threshold={0}
-                                    rootMargin="0px"
                                     className="profile-shiny-name"
                                     style={{ overflow: 'visible' }}
                                 />
@@ -325,12 +333,49 @@ export default function Profile() {
                                             <label style={{ display: 'block', color: '#cbd5e1', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 500 }}>Name</label>
                                             <input
                                                 type="text"
-                                                className="glass-input"
-                                                value={currentUser?.displayName || ""}
-                                                disabled
-                                                style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '0.85rem 1rem', color: '#fff', opacity: 0.5, cursor: 'not-allowed' }}
+                                                name="name"
+                                                className="glass-input profile-interactive-input"
+                                                value={preferences.name}
+                                                onChange={handleChange}
+                                                placeholder="e.g. Alex"
+                                                style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '0.85rem 1rem', color: '#fff', transition: 'all 0.3s ease' }}
                                             />
                                         </div>
+                                        
+                                        {/* Demographics Grid */}
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                                            <div className="glass-input-group" style={{ marginBottom: 0 }}>
+                                                <label style={{ display: 'block', color: '#cbd5e1', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 500 }}>Age</label>
+                                                <input
+                                                    type="number"
+                                                    name="age"
+                                                    className="glass-input profile-interactive-input"
+                                                    value={preferences.age}
+                                                    onChange={handleChange}
+                                                    placeholder="e.g. 30"
+                                                    min="0"
+                                                    max="120"
+                                                    style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '0.85rem 1rem', color: '#fff', transition: 'all 0.3s ease' }}
+                                                />
+                                            </div>
+                                            <div className="glass-input-group" style={{ marginBottom: 0 }}>
+                                                <label style={{ display: 'block', color: '#cbd5e1', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 500 }}>Gender</label>
+                                                <select
+                                                    name="gender"
+                                                    className="glass-input profile-interactive-input"
+                                                    value={preferences.gender}
+                                                    onChange={handleChange}
+                                                    style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '0.85rem 1rem', color: '#fff', transition: 'all 0.3s ease', appearance: 'none' }}
+                                                >
+                                                    <option value="Prefer not to say" style={{ color: '#000' }}>Prefer not to say</option>
+                                                    <option value="Male" style={{ color: '#000' }}>Male</option>
+                                                    <option value="Female" style={{ color: '#000' }}>Female</option>
+                                                    <option value="Non-binary" style={{ color: '#000' }}>Non-binary</option>
+                                                    <option value="Other" style={{ color: '#000' }}>Other</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
                                         <div className="glass-input-group" style={{ marginBottom: 0 }}>
                                             <label style={{ display: 'block', color: '#cbd5e1', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 500 }}>Email Address</label>
                                             <input

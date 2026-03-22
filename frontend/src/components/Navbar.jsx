@@ -26,6 +26,7 @@ export default function Navbar() {
     const items = currentUser ? [
         { label: "Dashboard", href: "/" },
         { label: "Weekly Report", href: "/weekly-report" },
+        { label: "ID Card", href: "/health-id" },
         { label: "Profile", href: "/profile" },
         { label: "Log Out", href: "#", onClick: handleLogout }
     ] : [
