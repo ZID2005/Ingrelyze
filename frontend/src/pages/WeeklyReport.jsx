@@ -475,6 +475,10 @@ export default function WeeklyReport() {
                                     <LineChart data={weeklyData} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
                                         <XAxis dataKey="name" stroke="#94a3b8" fontSize={13} tickLine={false} axisLine={false} />
                                         <YAxis stroke="#94a3b8" fontSize={13} tickLine={false} axisLine={false} />
+                                        <Tooltip
+                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.95)' }}
+                                            formatter={(val) => `${Math.round(val)} kcal`}
+                                        />
                                         <Line type="monotone" isAnimationActive={false} dataKey="calories" stroke="#3b82f6" strokeWidth={3} dot={{ fill: '#3b82f6', r: 4 }} />
                                     </LineChart>
                                 </ResponsiveContainer>
@@ -488,6 +492,10 @@ export default function WeeklyReport() {
                                     <BarChart data={weeklyData} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
                                         <XAxis dataKey="name" stroke="#94a3b8" fontSize={13} tickLine={false} axisLine={false} />
                                         <YAxis stroke="#94a3b8" fontSize={13} tickLine={false} axisLine={false} />
+                                        <Tooltip
+                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.95)' }}
+                                            formatter={(val) => `${Number(val).toFixed(1)}g`}
+                                        />
                                         <Legend wrapperStyle={{ fontSize: '13px', paddingTop: '10px' }} />
                                         <Bar dataKey="protein" isAnimationActive={false} stackId="a" fill="#3b82f6" name="Protein (g)" />
                                         <Bar dataKey="carbs" isAnimationActive={false} stackId="a" fill="#10b981" name="Carbs (g)" />
@@ -793,7 +801,11 @@ export default function WeeklyReport() {
                                     <ResponsiveContainer width="100%" height="100%">
                                         <BarChart data={weeklyData}>
                                             <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                                            <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.95)' }} cursor={{ fill: 'rgba(241,245,249,0.5)' }} />
+                                            <Tooltip 
+                                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.95)' }} 
+                                                cursor={{ fill: 'rgba(241,245,249,0.5)' }} 
+                                                formatter={(val) => `${Math.round(val)} kcal`}
+                                            />
                                             <Bar dataKey="calories" fill="#8b5cf6" radius={[6,6,0,0]} />
                                         </BarChart>
                                     </ResponsiveContainer>
@@ -807,7 +819,11 @@ export default function WeeklyReport() {
                                         <BarChart data={weeklyData}>
                                             <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
                                             <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                                            <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.95)' }} cursor={{ fill: 'rgba(241,245,249,0.5)' }} />
+                                            <Tooltip 
+                                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.95)' }} 
+                                                cursor={{ fill: 'rgba(241,245,249,0.5)' }} 
+                                                formatter={(val) => `${Number(val).toFixed(1)}g`}
+                                            />
                                             <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }} />
                                             <Bar dataKey="protein" stackId="a" fill="#3b82f6" name="Protein (g)" />
                                             <Bar dataKey="carbs" stackId="a" fill="#10b981" name="Carbs (g)" />
@@ -1000,7 +1016,10 @@ export default function WeeklyReport() {
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <LineChart data={weeklyData}>
                                                         <XAxis dataKey="name" stroke="#94a3b8" fontSize={14} tickLine={false} axisLine={false} />
-                                                        <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', background: '#fff' }} />
+                                                        <Tooltip 
+                                                            contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', background: '#fff' }} 
+                                                            formatter={(val) => `${Math.round(val)} kcal`}
+                                                        />
                                                         <Line type="monotone" dataKey="calories" stroke="#3b82f6" strokeWidth={5} dot={{ fill: '#3b82f6', strokeWidth: 3, r: 6 }} activeDot={{ r: 9, strokeWidth: 0, fill: '#3b82f6' }} />
                                                     </LineChart>
                                                 </ResponsiveContainer>
@@ -1013,7 +1032,11 @@ export default function WeeklyReport() {
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <BarChart data={weeklyData}>
                                                         <XAxis dataKey="name" stroke="#94a3b8" fontSize={14} tickLine={false} axisLine={false} />
-                                                        <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', background: '#fff' }} cursor={{ fill: 'rgba(241, 245, 249, 0.8)' }} />
+                                                        <Tooltip 
+                                                            contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', background: '#fff' }} 
+                                                            cursor={{ fill: 'rgba(241, 245, 249, 0.8)' }} 
+                                                            formatter={(val) => `${Number(val).toFixed(1)}g`}
+                                                        />
                                                         <Legend wrapperStyle={{ fontSize: '16px', paddingTop: '16px' }} />
                                                         <Bar dataKey="protein" stackId="a" fill="#3b82f6" name="Protein" />
                                                         <Bar dataKey="carbs" stackId="a" fill="#10b981" name="Carbs" />

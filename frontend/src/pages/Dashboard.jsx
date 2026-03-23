@@ -202,6 +202,7 @@ export default function Dashboard() {
                         const dbEntry = {
                             userId: currentUser.uid,
                             foodName: food.name,
+                            quantity: 1, // Default for AI detected items
                             calories: food.calories || 0,
                             protein: food.protein || 0,
                             carbs: food.carbs || 0,
@@ -303,6 +304,7 @@ export default function Dashboard() {
             return {
                 id: item.id || Math.random().toString(),
                 name: item.foodName || "Unknown",
+                quantity: item.quantity || 1,
                 gradeInfo: getGradeInfo(numScore),
                 date: item.date || new Date().toLocaleDateString('en-CA'),
                 analysisResult: item.analysis || { health_level: numScore },
@@ -517,6 +519,7 @@ export default function Dashboard() {
                     const dbEntry = {
                         userId: currentUser.uid,
                         foodName: entry.foodName,
+                        quantity: quantity,
                         calories: entry.calories,
                         protein: entry.protein,
                         carbs: entry.carbs,
@@ -551,6 +554,7 @@ export default function Dashboard() {
     function handleSelectRecent(item) {
         if (!item) return;
         setSearchTerm(item.name);
+        setQuantity(item.quantity || 1);
 
         // Load stored values into main display state synchronously
         setLatestResult(item.analysisResult);
@@ -1105,7 +1109,7 @@ export default function Dashboard() {
                                                     textOverflow: 'ellipsis',
                                                     whiteSpace: 'nowrap',
                                                 }}>
-                                                    {latestFoodName}
+                                                    {latestFoodName} {quantity > 1 && <span style={{ opacity: 0.7, marginLeft: '4px' }}>(x{quantity})</span>}
                                                 </span>
                                             </div>
                                         )}
@@ -1244,28 +1248,28 @@ export default function Dashboard() {
                                                 <div className="bar-bg">
                                                     <div className="bar-fill" style={{ width: getBarWidth(displayNutrients.protein), background: 'linear-gradient(90deg, #34d399, #10b981)' }}></div>
                                                 </div>
-                                                <span className="nutrient-val">{displayNutrients.protein}g</span>
+                                                <span className="nutrient-val">{Number(displayNutrients.protein || 0).toFixed(1)}g</span>
                                             </div>
                                             <div className="nutrient-row">
                                                 <span className="nutrient-label">Carbs</span>
                                                 <div className="bar-bg">
                                                     <div className="bar-fill" style={{ width: getBarWidth(displayNutrients.carbohydrates), background: 'linear-gradient(90deg, #60a5fa, #3b82f6)' }}></div>
                                                 </div>
-                                                <span className="nutrient-val">{displayNutrients.carbohydrates}g</span>
+                                                <span className="nutrient-val">{Number(displayNutrients.carbohydrates || 0).toFixed(1)}g</span>
                                             </div>
                                             <div className="nutrient-row">
                                                 <span className="nutrient-label">Fat</span>
                                                 <div className="bar-bg">
                                                     <div className="bar-fill" style={{ width: getBarWidth(displayNutrients.fat), background: 'linear-gradient(90deg, #fbbf24, #f59e0b)' }}></div>
                                                 </div>
-                                                <span className="nutrient-val">{displayNutrients.fat}g</span>
+                                                <span className="nutrient-val">{Number(displayNutrients.fat || 0).toFixed(1)}g</span>
                                             </div>
                                             <div className="nutrient-row">
                                                 <span className="nutrient-label">Sugar</span>
                                                 <div className="bar-bg">
                                                     <div className="bar-fill" style={{ width: getBarWidth(displayNutrients.sugar), background: 'linear-gradient(90deg, #f87171, #ef4444)' }}></div>
                                                 </div>
-                                                <span className="nutrient-val">{displayNutrients.sugar}g</span>
+                                                <span className="nutrient-val">{Number(displayNutrients.sugar || 0).toFixed(1)}g</span>
                                             </div>
 
                                             <hr style={{ border: 0, borderTop: '1px solid #f1f5f9', margin: '1rem 0' }} />
@@ -1275,14 +1279,14 @@ export default function Dashboard() {
                                                 <div className="bar-bg">
                                                     <div className="bar-fill" style={{ width: getBarWidth(displayNutrients.fiber), background: 'linear-gradient(90deg, #2dd4bf, #14b8a6)' }}></div>
                                                 </div>
-                                                <span className="nutrient-val">{Math.round(displayNutrients.fiber)}<span style={{ fontSize: '0.75rem', fontWeight: 400, color: '#94a3b8' }}>g</span></span>
+                                                <span className="nutrient-val">{Number(displayNutrients.fiber || 0).toFixed(1)}<span style={{ fontSize: '0.75rem', fontWeight: 400, color: '#94a3b8' }}>g</span></span>
                                             </div>
 
                                             <hr style={{ border: 0, borderTop: '1px solid #f1f5f9', margin: '1rem 0' }} />
 
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                 <span className="nutrient-label" style={{ width: 'auto' }}>Total Calories</span>
-                                                <span style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1e293b' }}>{displayNutrients.calories} <small style={{ fontSize: '0.8rem', fontWeight: 400, color: '#64748b' }}>kcal</small></span>
+                                                <span style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1e293b' }}>{Number(displayNutrients.calories || 0).toFixed(1)} <small style={{ fontSize: '0.8rem', fontWeight: 400, color: '#64748b' }}>kcal</small></span>
                                             </div>
                                         </div>
                                     ) : (
@@ -1323,6 +1327,7 @@ export default function Dashboard() {
                                                             <Tooltip
                                                                 contentStyle={{ borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.8)', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', backgroundColor: 'rgba(255, 255, 255, 0.85)', backdropFilter: 'blur(16px)', padding: '12px' }}
                                                                 itemStyle={{ color: '#1e293b', fontWeight: 600, paddingBottom: 0 }}
+                                                                formatter={(value) => `${Number(value).toFixed(1)}g`}
                                                             />
                                                             <Legend verticalAlign="bottom" height={36} iconType="circle" />
                                                         </PieChart>
@@ -1353,6 +1358,7 @@ export default function Dashboard() {
                                                             <Tooltip
                                                                 contentStyle={{ borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.8)', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', backgroundColor: 'rgba(255, 255, 255, 0.85)', backdropFilter: 'blur(16px)', padding: '12px', zIndex: 100 }}
                                                                 itemStyle={{ color: '#1e293b', fontWeight: 600 }}
+                                                                formatter={(value) => `${Math.round(value)} kcal`}
                                                             />
                                                             <Line
                                                                 type="monotone"
@@ -1579,8 +1585,23 @@ export default function Dashboard() {
                                         <ul className="recent-list">
                                             {recentlyAnalyzed.map((item) => (
                                                 <li key={item.id} className="recent-item" onClick={() => handleSelectRecent(item)}>
-                                                    <div>
-                                                        <div className="recent-name">{item.name}</div>
+                                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                                        <div className="recent-name" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+                                                            {item.quantity > 1 && (
+                                                                <span style={{ 
+                                                                    fontSize: '0.7rem', 
+                                                                    color: '#64748b', 
+                                                                    background: 'rgba(0,0,0,0.04)', 
+                                                                    padding: '1px 6px', 
+                                                                    borderRadius: '6px',
+                                                                    fontWeight: 700,
+                                                                    flexShrink: 0
+                                                                }}>
+                                                                    x{item.quantity}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{item.date}</div>
                                                     </div>
                                                     <div className="recent-score" style={{
