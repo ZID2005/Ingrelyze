@@ -39,6 +39,7 @@ export default function Dashboard() {
 
     // Search & UI State
     const [searchTerm, setSearchTerm] = useState("");
+    const [quantity, setQuantity] = useState(1);
     const [searchResults, setSearchResults] = useState([]);
     const [error, setError] = useState("");
     const [isChatOpen, setIsChatOpen] = useState(false);
@@ -470,6 +471,7 @@ export default function Dashboard() {
         try {
             const payload = {
                 query: searchTerm,
+                quantity: quantity,
                 user_preferences: userPrefs ? {
                     diabetes_level: userPrefs.diabetes,
                     hypertension_level: userPrefs.hypertension,
@@ -499,6 +501,7 @@ export default function Dashboard() {
                 setLatestResult(res.data.rating);
                 setLatestFoodName(res.data.savedEntry?.foodName || searchTerm);
                 setSearchTerm(""); // Clear input on success
+                setQuantity(1); // Reset quantity on success
 
                 const t4 = performance.now();
                 console.log("4. React states set:", t4 - t3, "ms");
@@ -1007,6 +1010,39 @@ export default function Dashboard() {
                                             ))}
                                         </ul>
                                     )}
+                                </div>
+                                <div style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: '8px', 
+                                    padding: '0 10px',
+                                    borderLeft: '1.5px solid rgba(255, 255, 255, 0.4)',
+                                    margin: '0 5px'
+                                }}>
+                                    <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Qty</span>
+                                    <input
+                                        type="number"
+                                        min="0.1"
+                                        step="0.5"
+                                        value={quantity}
+                                        onChange={(e) => setQuantity(parseFloat(e.target.value) || 1)}
+                                        style={{
+                                            width: '55px',
+                                            background: 'rgba(255, 255, 255, 0.25)',
+                                            border: '1.5px solid rgba(255, 255, 255, 0.5)',
+                                            borderRadius: '12px',
+                                            padding: '6px 4px',
+                                            fontSize: '1rem',
+                                            color: '#1e293b',
+                                            textAlign: 'center',
+                                            fontWeight: 700,
+                                            outline: 'none',
+                                            boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
+                                            transition: 'all 0.2s ease'
+                                        }}
+                                        onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                                        onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.5)'}
+                                    />
                                 </div>
                                 <GlassButton
                                     onClick={handleAnalyze}

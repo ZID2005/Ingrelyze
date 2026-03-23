@@ -53,11 +53,25 @@ export default function Login() {
         try {
             setError("");
             setLoading(true);
-            await googleLogin();
+            const result = await googleLogin();
+            console.log("Google login success:", result);
             setShowWelcome(true);
         } catch (err) {
-            console.error("Google login error:", err);
-            setError("Failed to log in with Google. Please try again.");
+            console.error("Google login error details:", err);
+            console.error("Error code:", err.code);
+            console.error("Error message:", err.message);
+            
+            let errorMessage = "Failed to log in with Google. Please try again.";
+            
+            if (err.code === 'auth/unauthorized-domain') {
+                errorMessage = "This domain (ingrelyze.vercel.app) is not authorized in Firebase. Please add it to 'Authorized domains' in the Firebase Console.";
+            } else if (err.code === 'auth/popup-blocked') {
+                errorMessage = "Sign-in popup was blocked by your browser. Please enable popups and try again.";
+            } else if (err.code === 'auth/operation-not-allowed') {
+                errorMessage = "Google sign-in is not enabled in your Firebase project. Please enable it in the Firebase Console.";
+            }
+            
+            setError(errorMessage);
         }
         setLoading(false);
     }

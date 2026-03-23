@@ -227,6 +227,7 @@ class AnalyzeRequest(BaseModel):
     query: str
     user_preferences: Optional[UserPreferences] = None
     local_date: Optional[str] = None
+    quantity: Optional[float] = None
 
 class AIAssistantRequest(BaseModel):
     query: str
@@ -447,12 +448,13 @@ def analyze_food(request: AnalyzeRequest, user: dict = Depends(get_current_user)
             parsed_items = [{"quantity": 1.0, "food": request.query.strip()}]
 
         # 2. Match and Aggregate Nutrients
+        multiplier = request.quantity if request.quantity is not None else 1.0
         total_nutrients = Nutrients(calories=0, sugar=0, fat=0, protein=0, sodium=0, saturated_fat=0, fiber=0, cholesterol=0, carbohydrates=0)
         matched_any = False
         
         for item in parsed_items:
             food_name = item["food"]
-            qty = item["quantity"]
+            qty = item["quantity"] * multiplier
             
             print(f"[DEBUG Analyze] Searching for: '{food_name}' (qty: {qty})")
             try:
