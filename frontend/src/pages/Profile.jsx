@@ -219,8 +219,11 @@ export default function Profile() {
 
     if (loading) {
         return (
-            <div className="flex-center full-height" style={{ background: '#020617', height: '100vh', width: '100vw' }}>
+            <div className="flex-center full-height" style={{ background: '#020617', height: '100vh', width: '100vw', flexDirection: 'column', gap: '2rem' }}>
                 <div className="spinner"></div>
+                <div style={{ color: '#94a3b8', fontSize: '1.2rem', fontWeight: 500, letterSpacing: '0.05em', animation: 'pulse 2s infinite' }}>
+                    {selectedFile ? "Analyzing your medical report with AI..." : "Loading your profile..."}
+                </div>
             </div>
         );
     }

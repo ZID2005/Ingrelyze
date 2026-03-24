@@ -279,9 +279,9 @@ export default function WeeklyReport() {
         });
 
         setHealthImpactLists({
-            positive: pos.slice(0, 8),
-            negative: neg.slice(0, 8),
-            neutral: neu.slice(0, 8),
+            positive: pos.slice(0, 10),
+            negative: neg.slice(0, 10),
+            neutral: neu.slice(0, 10),
         });
 
     }, [weeklyEntries, userPrefs]);
@@ -303,11 +303,11 @@ export default function WeeklyReport() {
         const weeklySurplus = diff * myActiveDaysCount;
 
         if (diff > 150) {
-            setWeightImpact({ indicator: 'Surplus', label: 'Weight Gain Risk', surplusDeficit: weeklySurplus });
+            setWeightImpact({ indicator: 'Surplus', label: 'Weekly Surplus (So Far)', surplusDeficit: weeklySurplus });
         } else if (diff < -150) {
-            setWeightImpact({ indicator: 'Deficit', label: 'Weight Loss Trend', surplusDeficit: weeklySurplus });
+            setWeightImpact({ indicator: 'Deficit', label: 'Weekly Deficit (So Far)', surplusDeficit: weeklySurplus });
         } else {
-            setWeightImpact({ indicator: 'Balanced', label: 'Maintaining Weight', surplusDeficit: weeklySurplus });
+            setWeightImpact({ indicator: 'Balanced', label: 'Maintaining Weight (So Far)', surplusDeficit: weeklySurplus });
         }
 
     }, [weeklyData, userPrefs]);
@@ -422,10 +422,10 @@ export default function WeeklyReport() {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', marginBottom: '36px' }}>
                         {[
                             { label: 'Total Calories', value: weeklyData.reduce((a,c) => a+c.calories, 0).toLocaleString(), unit: 'kcal' },
-                            { label: 'Avg Protein', value: weeklyData.length > 0 ? Math.round(weeklyData.reduce((a,c) => a+c.protein,0)/7) : 0, unit: 'g' },
-                            { label: 'Avg Carbs', value: weeklyData.length > 0 ? Math.round(weeklyData.reduce((a,c) => a+c.carbs,0)/7) : 0, unit: 'g' },
-                            { label: 'Avg Fat', value: weeklyData.length > 0 ? Math.round(weeklyData.reduce((a,c) => a+c.fat,0)/7) : 0, unit: 'g' },
-                            { label: 'Avg Sugar', value: weeklyData.length > 0 ? Math.round(weeklyData.reduce((a,c) => a+c.sugar,0)/7) : 0, unit: 'g' },
+                            { label: 'Avg Protein', value: weeklyData.filter(d => d.calories > 0).length > 0 ? Math.round(weeklyData.reduce((a,c) => a+c.protein,0)/weeklyData.filter(d => d.calories > 0).length) : 0, unit: 'g' },
+                            { label: 'Avg Carbs', value: weeklyData.filter(d => d.calories > 0).length > 0 ? Math.round(weeklyData.reduce((a,c) => a+c.carbs,0)/weeklyData.filter(d => d.calories > 0).length) : 0, unit: 'g' },
+                            { label: 'Avg Fat', value: weeklyData.filter(d => d.calories > 0).length > 0 ? Math.round(weeklyData.reduce((a,c) => a+c.fat,0)/weeklyData.filter(d => d.calories > 0).length) : 0, unit: 'g' },
+                            { label: 'Avg Sugar', value: weeklyData.filter(d => d.calories > 0).length > 0 ? Math.round(weeklyData.reduce((a,c) => a+c.sugar,0)/weeklyData.filter(d => d.calories > 0).length) : 0, unit: 'g' },
                         ].map(stat => (
                             <div key={stat.label} style={{ background: '#f8fafc', padding: '14px', borderRadius: '4px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
                                 <div style={{ color: '#475569', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>{stat.label}</div>
@@ -680,13 +680,13 @@ export default function WeeklyReport() {
                             <span style={{ marginLeft: 'auto', fontSize: '0.78rem', color: '#94a3b8', fontWeight: 500 }}>Click to expand →</span>
                         </h3>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px' }}>
-                            {[
-                                { label: 'Total Calories', value: weeklyData.reduce((a,c) => a+c.calories, 0).toLocaleString(), unit: 'kcal', color: '#3b82f6' },
-                                { label: 'Avg Protein', value: weeklyData.length > 0 ? Math.round(weeklyData.reduce((a,c) => a+c.protein,0)/7) : 0, unit: 'g', color: '#10b981' },
-                                { label: 'Avg Carbs', value: weeklyData.length > 0 ? Math.round(weeklyData.reduce((a,c) => a+c.carbs,0)/7) : 0, unit: 'g', color: '#8b5cf6' },
-                                { label: 'Avg Fat', value: weeklyData.length > 0 ? Math.round(weeklyData.reduce((a,c) => a+c.fat,0)/7) : 0, unit: 'g', color: '#f59e0b' },
-                                { label: 'Avg Sugar', value: weeklyData.length > 0 ? Math.round(weeklyData.reduce((a,c) => a+c.sugar,0)/7) : 0, unit: 'g', color: '#ef4444' },
-                            ].map(stat => (
+                        {[
+                            { label: 'Total Calories', value: weeklyData.reduce((a,c) => a+c.calories, 0).toLocaleString(), unit: 'kcal', color: '#3b82f6' },
+                            { label: 'Avg Protein', value: weeklyData.filter(d => d.calories > 0).length > 0 ? Math.round(weeklyData.reduce((a,c) => a+c.protein,0)/weeklyData.filter(d => d.calories > 0).length) : 0, unit: 'g', color: '#10b981' },
+                            { label: 'Avg Carbs', value: weeklyData.filter(d => d.calories > 0).length > 0 ? Math.round(weeklyData.reduce((a,c) => a+c.carbs,0)/weeklyData.filter(d => d.calories > 0).length) : 0, unit: 'g', color: '#8b5cf6' },
+                            { label: 'Avg Fat', value: weeklyData.filter(d => d.calories > 0).length > 0 ? Math.round(weeklyData.reduce((a,c) => a+c.fat,0)/weeklyData.filter(d => d.calories > 0).length) : 0, unit: 'g', color: '#f59e0b' },
+                            { label: 'Avg Sugar', value: weeklyData.filter(d => d.calories > 0).length > 0 ? Math.round(weeklyData.reduce((a,c) => a+c.sugar,0)/weeklyData.filter(d => d.calories > 0).length) : 0, unit: 'g', color: '#ef4444' },
+                        ].map(stat => (
                                 <div key={stat.label} style={{ background: 'rgba(255,255,255,0.7)', padding: '16px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.9)' }}>
                                     <div style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>{stat.label}</div>
                                     <div style={{ fontWeight: 800, color: stat.color, fontSize: '1.6rem', lineHeight: 1 }}>{stat.value} <span style={{ fontSize: '0.9rem', color: '#94a3b8', fontWeight: 500 }}>{stat.unit}</span></div>

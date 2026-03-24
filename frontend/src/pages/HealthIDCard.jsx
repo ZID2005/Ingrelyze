@@ -15,7 +15,7 @@ import * as THREE from 'three';
 
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import Aurora from '../components/Aurora';
 import './HealthIDCard.css';
@@ -464,38 +464,60 @@ export default function HealthIDCard() {
           collection(db, 'foodEntries'),
           where('userId', '==', currentUser.uid)
         );
-        const snapshot = await getDocs(q);
         
-        const dailyMap = {};
-        heatDates.forEach(d => dailyMap[d] = { calories: 0, sugar: 0, fat: 0, sodium: 0 });
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          const dailyMap = {};
+          heatDates.forEach(d => dailyMap[d] = { calories: 0, sugar: 0, fat: 0, sodium: 0, lactoseRisky: false });
 
-        snapshot.forEach(doc => {
-          const data = doc.data();
-          if (dailyMap[data.date]) {
-            dailyMap[data.date].calories += Number(data.calories || 0);
-            dailyMap[data.date].sugar += Number(data.sugar || 0);
-            dailyMap[data.date].fat += Number(data.fat || 0);
-            dailyMap[data.date].sodium += Number(data.sodium || 0);
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            if (dailyMap[data.date]) {
+              dailyMap[data.date].calories += Number(data.calories || 0);
+              dailyMap[data.date].sugar += Number(data.sugar || 0);
+              dailyMap[data.date].fat += Number(data.fat || 0);
+              dailyMap[data.date].sodium += Number(data.sodium || 0);
+              
+              // Lactose check logic:
+              const dairyWords = ['milk', 'cheese', 'yogurt', 'butter', 'cream', 'whey', 'lactose', 'pizza', 'ice cream'];
+              const foodName = (data.foodName || "").toLowerCase();
+              if (dairyWords.some(w => foodName.includes(w))) {
+                dailyMap[data.date].lactoseRisky = true;
+              }
+            }
+          });
+
+          const activeDays = Object.values(dailyMap).filter(d => d.calories > 0).length;
+          if (activeDays >= 1) {
+            let totSugar = 0, totFat = 0, totSodium = 0, riskyLactoseDays = 0;
+            Object.values(dailyMap).forEach(d => {
+               totSugar += d.sugar; totFat += d.fat; totSodium += d.sodium;
+               if (d.lactoseRisky) riskyLactoseDays++;
+            });
+            const avgSugar = totSugar / activeDays;
+            const avgFat = totFat / activeDays;
+            const avgSodium = totSodium / activeDays;
+
+            // Lactose Trend Logic:
+            // If user has lactose condition and avoids it -> improved
+            // If they eat it -> declined
+            const hasLactoseRisk = profile?.lactose && profile.lactose !== 'None';
+            let lactoseStatus = 'stable';
+            if (hasLactoseRisk) {
+              lactoseStatus = riskyLactoseDays === 0 ? 'improved' : 'declined';
+            }
+
+            setWeeklyTrends({
+              diabetes: avgSugar < 30 ? 'improved' : avgSugar > 50 ? 'declined' : 'stable',
+              hypertension: avgSodium < 2000 ? 'improved' : avgSodium > 2500 ? 'declined' : 'stable',
+              cholesterol: avgFat < 50 ? 'improved' : avgFat > 75 ? 'declined' : 'stable',
+              lactose: lactoseStatus
+            });
           }
+        }, (err) => {
+          console.error('Failed to listen to food entries for ID card', err);
         });
 
-        const activeDays = Object.values(dailyMap).filter(d => d.calories > 0).length;
-        if (activeDays >= 2) {
-          let totSugar = 0, totFat = 0, totSodium = 0;
-          Object.values(dailyMap).forEach(d => {
-             totSugar += d.sugar; totFat += d.fat; totSodium += d.sodium;
-          });
-          const avgSugar = totSugar / activeDays;
-          const avgFat = totFat / activeDays;
-          const avgSodium = totSodium / activeDays;
-
-          setWeeklyTrends({
-            diabetes: avgSugar < 30 ? 'improved' : avgSugar > 50 ? 'declined' : 'stable',
-            hypertension: avgSodium < 2000 ? 'improved' : avgSodium > 2500 ? 'declined' : 'stable',
-            cholesterol: avgFat < 50 ? 'improved' : avgFat > 75 ? 'declined' : 'stable',
-            lactose: 'stable' // Fallback
-          });
-        }
+        return () => unsubscribe();
       } catch (err) {
         console.error('Failed to fetch food entries for ID card', err);
       }

@@ -209,6 +209,7 @@ export default function Dashboard() {
                             carbs: food.carbs || 0,
                             fat: food.fat || 0,
                             sugar: food.sugar || 0,
+                            sodium: food.sodium || 0,
                             date: todayStr,
                             healthLevel: 0, // Placeholder for chat-logged items
                             analysis: { explanation: "Logged via AI Assistant" },
@@ -528,6 +529,7 @@ export default function Dashboard() {
                         carbs: entry.carbs,
                         fat: entry.fat,
                         sugar: entry.sugar,
+                        sodium: entry.sodium || 0,
                         date: new Date().toLocaleDateString('en-CA'), // Strictly local YYYY-MM-DD
                         healthLevel: numScore,
                         analysis: res.data.rating,

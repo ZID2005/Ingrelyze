@@ -515,6 +515,7 @@ def analyze_food(request: AnalyzeRequest, user: dict = Depends(get_current_user)
         "carbs": total_nutrients.carbohydrates,
         "fat": total_nutrients.fat,
         "sugar": total_nutrients.sugar,
+        "sodium": total_nutrients.sodium,
         "createdAt": datetime.now().isoformat() + "Z"
     }
 
@@ -914,7 +915,8 @@ async def upload_medical_report(file: UploadFile = File(...), user: dict = Depen
             messages = [{"role": "user", "content": prompt_with_context}]
         else:
             # Handle Image with Vision
-            model_to_use = "llama-3.2-90b-vision-preview" # Using 90b for better vision accuracy and stability
+            # Using 11b instead of 90b for significantly faster inference while maintaining sufficient extraction accuracy
+            model_to_use = "llama-3.2-11b-vision-preview" 
             base64_image = base64.b64encode(content).decode('utf-8')
             messages = [
                 {
