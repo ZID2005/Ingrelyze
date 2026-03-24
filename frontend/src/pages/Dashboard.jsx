@@ -499,6 +499,7 @@ export default function Dashboard() {
             console.log("3. API Axios fetch done:", t3 - t2, "ms");
 
             if (res.data.success) {
+                const submittedQty = quantity; // Capture before state reset
                 setLatestNutrients(res.data.analysis);
                 setLatestResult(res.data.rating);
                 setLatestFoodName(res.data.savedEntry?.foodName || searchTerm);
@@ -519,7 +520,7 @@ export default function Dashboard() {
                     const dbEntry = {
                         userId: currentUser.uid,
                         foodName: entry.foodName,
-                        quantity: quantity,
+                        quantity: submittedQty,
                         calories: entry.calories,
                         protein: entry.protein,
                         carbs: entry.carbs,
@@ -1026,10 +1027,10 @@ export default function Dashboard() {
                                     <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Qty</span>
                                     <input
                                         type="number"
-                                        min="0.1"
-                                        step="0.5"
+                                        min="1"
+                                        step="1"
                                         value={quantity}
-                                        onChange={(e) => setQuantity(parseFloat(e.target.value) || 1)}
+                                        onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
                                         style={{
                                             width: '55px',
                                             background: 'rgba(255, 255, 255, 0.25)',

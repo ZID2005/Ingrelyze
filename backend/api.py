@@ -684,9 +684,17 @@ def ai_assistant_summary(request: AIAssistantRequest, user: dict = Depends(get_c
         # 4. Construct Prompt
         user_name_val = request.user_name
         weight_val = user_prefs.get("weight", "Not specified")
-        weight_goal = user_prefs.get("weight_goal", "maintain")
-        diabetes = user_prefs.get("diabetes_level", "Low")
-        hypertension = user_prefs.get("hypertension_level", "Low")
+        # Firestore stores these as 'weightGoal', 'diabetes', 'hypertension', etc.
+        # Fall back to the old _level keys for backward compat with any older records.
+        weight_goal = user_prefs.get("weightGoal") or user_prefs.get("weight_goal", "maintain")
+        diabetes = user_prefs.get("diabetes") or user_prefs.get("diabetes_level", "Low")
+        hypertension = user_prefs.get("hypertension") or user_prefs.get("hypertension_level", "Low")
+        cholesterol = user_prefs.get("cholesterol") or user_prefs.get("cholesterol_level", "Low")
+        lactose = user_prefs.get("lactose") or user_prefs.get("lactose_level", "None")
+        age = user_prefs.get("age", "Not specified")
+        gender = user_prefs.get("gender", "Not specified")
+        activity = user_prefs.get("activityLevel", "Not specified")
+        diet_type = user_prefs.get("dietType", "Not specified")
         
         def get_food_label(f):
             return f.get("foodName") or f.get("name") or f.get("food") or "Unknown"
@@ -745,8 +753,9 @@ You are the Ingrelyze AI Nutrition Assistant — a friendly, concise nutrition e
 
 USER CONTEXT:
 - Name: {user_name_val}
-- Weight: {weight_val}kg | Goal: {weight_goal}
-- Risk Factors: Diabetes: {diabetes}, Hypertension: {hypertension}
+- Age: {age} | Gender: {gender} | Weight: {weight_val}kg | Goal: {weight_goal}
+- Activity Level: {activity} | Diet: {diet_type}
+- Health Risks: Diabetes: {diabetes}, Hypertension: {hypertension}, Cholesterol: {cholesterol}, Lactose: {lactose}
 
 NUTRITION SNAPSHOT:
 - Today's foods: {today_foods_str}
