@@ -217,12 +217,90 @@ export default function Profile() {
         }
     };
 
+    const healthTips = [
+        "Did you know? Drinking water before meals can aid digestion and weight management.",
+        "Consistency is key. Logging your meals helps you stay mindful of your health goals.",
+        "Small steps, big impact. A 10-minute walk after dinner can stabilize blood sugar.",
+        "Focus on fiber. Whole grains and vegetables keep you full longer and support heart health.",
+        "Pro Tip: Balanced meals with protein, healthy fats, and fiber prevent energy crashes.",
+        "Better sleep leads to better food choices. Aim for 7-8 hours of quality rest.",
+        "Tracking sodium? Most of it comes from processed foods, not the salt shaker!"
+    ];
+
+    const [currentTipIndex, setCurrentTipIndex] = useState(0);
+
+    useEffect(() => {
+        if (!loading || !selectedFile) return;
+        const interval = setInterval(() => {
+            setCurrentTipIndex(prev => (prev + 1) % healthTips.length);
+        }, 4000);
+        return () => clearInterval(interval);
+    }, [loading, selectedFile]);
+
     if (loading) {
+        if (selectedFile) {
+            return (
+                <div className="medical-analysis-overlay" style={{
+                    position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+                    background: '#020617', zIndex: 20000, display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center', overflow: 'hidden'
+                }}>
+                    <LightPillar
+                        topColor="#b19eef"
+                        bottomColor="#020617"
+                        intensity={0.8}
+                        quality="high"
+                        pillarWidth={2.0}
+                        pillarHeight={0.8}
+                        pillarRotation={25}
+                    />
+                    
+                    <div style={{ position: 'relative', zIndex: 10, textAlign: 'center', maxWidth: '600px', padding: '0 2rem' }}>
+                        <div className="spinner" style={{ margin: '0 auto 3rem', width: '60px', height: '60px', borderWidth: '4px', borderColor: 'rgba(177, 158, 239, 0.2)', borderTopColor: '#b19eef' }}></div>
+                        
+                        <div style={{ marginBottom: '1rem' }}>
+                            <GreetingText
+                                text="Analyzing Your Medical Report..."
+                                delay={30}
+                                duration={1.0}
+                                className="profile-shiny-name"
+                                style={{ fontSize: '2rem', marginBottom: '0.5rem' }}
+                            />
+                        </div>
+
+                        <div style={{ minHeight: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <motion.div
+                                key={currentTipIndex}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.8 }}
+                                style={{ color: '#94a3b8', fontSize: '1.1rem', fontStyle: 'italic', lineHeight: 1.6 }}
+                            >
+                                {healthTips[currentTipIndex]}
+                            </motion.div>
+                        </div>
+                        
+                        <div style={{ marginTop: '4rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
+                            <div style={{ width: '200px', height: '2px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
+                                <motion.div 
+                                    animate={{ x: [-200, 200] }}
+                                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                                    style={{ width: '100px', height: '100%', background: 'linear-gradient(90deg, transparent, #b19eef, transparent)' }}
+                                />
+                            </div>
+                            <span style={{ fontSize: '0.75rem', color: '#64748b', letterSpacing: '0.1em', textTransform: 'uppercase' }}>AI Content Extraction in progress</span>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
         return (
             <div className="flex-center full-height" style={{ background: '#020617', height: '100vh', width: '100vw', flexDirection: 'column', gap: '2rem' }}>
                 <div className="spinner"></div>
                 <div style={{ color: '#94a3b8', fontSize: '1.2rem', fontWeight: 500, letterSpacing: '0.05em', animation: 'pulse 2s infinite' }}>
-                    {selectedFile ? "Analyzing your medical report with AI..." : "Loading your profile..."}
+                    Loading your profile...
                 </div>
             </div>
         );

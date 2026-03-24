@@ -66,24 +66,15 @@ except Exception as e:
     db = None
 
 # --- Medical Report Prompt ---
-MEDICAL_EXTRACTOR_PROMPT = """
-You are a highly accurate medical data extractor. Your task is to analyze the provided medical report (text or image) and extract specific health indicators.
-Return ONLY a JSON object with the following fields and allowed values:
-
+MEDICAL_EXTRACTOR_PROMPT = """Analyze the medical report and extract health indicators as JSON.
+Return ONLY JSON with these fields:
 - "diabetes": "Low", "Medium", "High", or "Unknown"
 - "hypertension": "Low", "Medium", "High", or "Unknown"
 - "cholesterol": "Low", "Medium", "High", or "Unknown" 
 - "lactose": "None", "Mild", "Severe", or "Unknown"
 
-Base your assessment on keywords such as:
-- Diabetes: Blood glucose, HbA1c, insulin levels.
-- Hypertension: Blood pressure (systolic/diastolic), hypertension diagnosis.
-- Cholesterol: LDL, HDL, Triglycerides, total cholesterol.
-- Lactose: Lactose intolerance mention, stool acidity, hydrogen breath test results.
-
-If you are unsure or data is missing for a field, use "Unknown". 
-Do not include any explanation or extra text outside the JSON object.
-"""
+Keywords to look for: Glucose, HbA1c, Blood Pressure, LDL/HDL, Triglycerides, Lactose intolerance.
+If missing or unclear, use "Unknown". No explanations."""
 
 # --- Authentication Middleware ---
 def get_current_user(authorization: Optional[str] = Header(None)):

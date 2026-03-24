@@ -24,11 +24,15 @@ extend({ MeshLineGeometry, MeshLineMaterial });
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-function getBadge(improved, declined) {
-  if (improved >= 3) return { label: 'Platinum', emoji: '💎', color: '#b2f5f5', glow: '#00e0ff', improved };
-  if (improved === 2) return { label: 'Gold', emoji: '🥇', color: '#ffe370', glow: '#ffb800', improved };
+function getBadge(improved, declined, hazard) {
+  if (hazard >= 1) return { label: 'Hazard', emoji: '☢️', color: '#ff1744', glow: '#d50000', improved };
+  if (declined >= 2) return { label: 'Critical', emoji: '🚨', color: '#ff5252', glow: '#ff1744', improved };
+  if (declined === 1) return { label: 'At Risk', emoji: '⚠️', color: '#ff9100', glow: '#ff6d00', improved };
+  
+  // Only if 0 declined and 0 hazard:
+  if (improved >= 4) return { label: 'Platinum', emoji: '💎', color: '#b2f5f5', glow: '#00e0ff', improved };
+  if (improved >= 2) return { label: 'Gold', emoji: '🥇', color: '#ffe370', glow: '#ffb800', improved };
   if (improved === 1) return { label: 'Silver', emoji: '🥈', color: '#c8d6e5', glow: '#a0b4c8', improved };
-  if (declined >= 1) return { label: 'At Risk', emoji: '⚠️', color: '#ff7043', glow: '#ff4500', improved };
   return { label: 'Starter', emoji: '🌱', color: '#69f0ae', glow: '#00c853', improved };
 }
 
@@ -37,7 +41,15 @@ const METRICS = [
   { key: 'hypertension', label: 'Blood Pressure', icon: '❤️' },
   { key: 'cholesterol', label: 'Cholesterol', icon: '🫀' },
   { key: 'lactose', label: 'Lactose', icon: '🥛' },
+  { key: 'weight', label: 'Weight Management', icon: '⚖️' },
 ];
+
+const parseRiskLevel = (val) => {
+    if (val === 'High' || val === 'Severe') return 3;
+    if (val === 'Medium' || val === 'Mild') return 2;
+    if (val === 'Low' || val === 'None' || val === 'Unknown') return 0;
+    return Number(val) || 0;
+};
 
 // ─── High-res Card Canvas Texture ─────────────────────────────────────────────
 function drawRoundRect(ctx, x, y, w, h, r) {
@@ -171,8 +183,8 @@ function buildCardTexture({ profile, weeklyTrends, badge, photoUrl, onReady }) {
     ctx.restore();
 
     // ── Metrics ──
-    const metricStartY = 680;
-    const metricH = 164;
+    const metricStartY = 660;
+    const metricH = 156;
     METRICS.forEach((m, i) => {
       const y = metricStartY + i * metricH;
       const status = weeklyTrends?.[m.key] || 'stable';
@@ -184,6 +196,9 @@ function buildCardTexture({ profile, weeklyTrends, badge, photoUrl, onReady }) {
       } else if (status === 'declined') {
         rowBg.addColorStop(0, 'rgba(255,112,67,0.08)');
         rowBg.addColorStop(1, 'rgba(255,112,67,0.02)');
+      } else if (status === 'hazard') {
+        rowBg.addColorStop(0, 'rgba(239, 68, 68, 0.12)');
+        rowBg.addColorStop(1, 'rgba(239, 68, 68, 0.03)');
       } else {
         rowBg.addColorStop(0, 'rgba(255,255,255,0.04)');
         rowBg.addColorStop(1, 'rgba(255,255,255,0.02)');
@@ -193,7 +208,7 @@ function buildCardTexture({ profile, weeklyTrends, badge, photoUrl, onReady }) {
       ctx.fill();
 
       ctx.strokeStyle = status === 'improved' ? 'rgba(105,240,174,0.2)'
-        : status === 'declined' ? 'rgba(255,112,67,0.2)'
+        : (status === 'declined' || status === 'hazard') ? 'rgba(255,112,67,0.3)'
         : 'rgba(255,255,255,0.06)';
       ctx.lineWidth = 2;
       ctx.stroke();
@@ -208,8 +223,16 @@ function buildCardTexture({ profile, weeklyTrends, badge, photoUrl, onReady }) {
       ctx.fillText(m.label, 172, y + 44);
 
       ctx.textAlign = 'right';
-      const displayTxt = status === 'improved' ? 'Improved ▲' : status === 'declined' ? 'Worsened ▼' : 'Stable —';
-      ctx.fillStyle = status === 'improved' ? '#69f0ae' : status === 'declined' ? '#ff7043' : 'rgba(255,255,255,0.6)';
+      const displayTxt = status === 'improved' ? 'Improved ▲' 
+                       : status === 'hazard'   ? 'Hazard ☣'
+                       : status === 'declined' ? 'Worsened ▼' 
+                       : 'Stable —';
+                       
+      ctx.fillStyle = status === 'improved' ? '#69f0ae' 
+                    : status === 'hazard'   ? '#ff1744'
+                    : status === 'declined' ? '#ff7043' 
+                    : 'rgba(255,255,255,0.6)';
+                    
       ctx.font = `bold 36px Inter, sans-serif`;
       ctx.fillText(displayTxt, W - 92, y + (metricH - 22) / 2);
     });
@@ -385,6 +408,7 @@ function MetricRow({ metric, status }) {
       <div className="hid-metric-right">
         {status === 'improved' && <span className="hid-trend hid-trend-up" style={{fontSize: '0.85rem'}}>▲ Improved</span>}
         {status === 'declined' && <span className="hid-trend hid-trend-down" style={{fontSize: '0.85rem'}}>▼ Worsened</span>}
+        {status === 'hazard' && <span className="hid-trend hid-trend-hazard" style={{fontSize: '0.85rem'}}>☣ Hazard</span>}
         {status === 'stable' && <span className="hid-trend hid-trend-stable" style={{fontSize: '0.85rem'}}>— Stable</span>}
       </div>
     </div>
@@ -403,7 +427,8 @@ export default function HealthIDCard() {
     diabetes: 'stable',
     hypertension: 'stable',
     cholesterol: 'stable',
-    lactose: 'stable'
+    lactose: 'stable',
+    weight: 'stable'
   });
   const [badgeInfo, setBadgeInfo] = useState({ label: 'Starter', emoji: '🌱', color: '#69f0ae', glow: '#00c853' });
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
@@ -506,11 +531,34 @@ export default function HealthIDCard() {
               lactoseStatus = riskyLactoseDays === 0 ? 'improved' : 'declined';
             }
 
+            const dLevel = parseRiskLevel(profile?.diabetes);
+            const maxSugar = (50 - (dLevel * 10)); // Meal max is ~50. Daily avg threshold is similar.
+            
+            const bpLevel = parseRiskLevel(profile?.hypertension);
+            const maxSodium = (800 - (bpLevel * 150)); 
+            
+            const cLevel = parseRiskLevel(profile?.cholesterol);
+            const maxSatFat = (15 - (cLevel * 3));
+
+            // Weight calculation:
+            const wGoal = profile?.weightGoal || 'maintain';
+            let targetCal = 2000;
+            if (wGoal === 'lose') targetCal = 1700;
+            if (wGoal === 'gain_muscle') targetCal = 2400;
+
+            const calculateStatus = (val, max) => {
+                if (val > max * 1.5) return 'hazard';
+                if (val > max) return 'declined';
+                if (val < max * 0.7) return 'improved';
+                return 'stable';
+            };
+
             setWeeklyTrends({
-              diabetes: avgSugar < 30 ? 'improved' : avgSugar > 50 ? 'declined' : 'stable',
-              hypertension: avgSodium < 2000 ? 'improved' : avgSodium > 2500 ? 'declined' : 'stable',
-              cholesterol: avgFat < 50 ? 'improved' : avgFat > 75 ? 'declined' : 'stable',
-              lactose: lactoseStatus
+              diabetes: calculateStatus(avgSugar, maxSugar),
+              hypertension: calculateStatus(avgSodium, maxSodium),
+              cholesterol: calculateStatus(avgFat, maxSatFat),
+              lactose: lactoseStatus,
+              weight: calculateStatus(avgCalories, targetCal)
             });
           }
         }, (err) => {
@@ -529,14 +577,16 @@ export default function HealthIDCard() {
     if (!profile) return;
     let improved = 0;
     let declined = 0;
+    let hazard = 0;
 
     METRICS.forEach(m => {
       const status = weeklyTrends[m.key];
       if (status === 'improved') improved++;
       if (status === 'declined') declined++;
+      if (status === 'hazard') hazard++;
     });
 
-    setBadgeInfo(getBadge(improved, declined));
+    setBadgeInfo(getBadge(improved, declined, hazard));
   }, [profile, weeklyTrends]);
 
   useEffect(() => {
