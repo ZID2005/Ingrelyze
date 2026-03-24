@@ -42,6 +42,8 @@
   padding: 1rem 1.6rem;
   overflow-y: auto;
   max-height: calc(100vh - 120px);
+  scrollbar-width: none; /* Hide for Firefox */
+  -ms-overflow-style: none; /* Hide for IE/Edge */
   /* Explicit dark glass background so text is always visible */
   background: linear-gradient(150deg, rgba(12, 16, 32, 0.8), rgba(6, 10, 24, 0.95));
   backdrop-filter: blur(40px);
@@ -240,11 +242,11 @@
 
 /* ─── Export Button ──────────────────────────────────────────────────────── */
 .hid-download-btn {
-  margin-top: 1rem;
-  width: 100%;
-  padding: 0.9rem;
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(0, 224, 255, 0.15), rgba(124, 58, 237, 0.15));
+  margin-top: 0.5rem;
+  width: fit-content;
+  padding: 0.65rem 1.4rem;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(0, 224, 255, 0.1), rgba(124, 58, 237, 0.15));
   border: 1px solid rgba(0, 224, 255, 0.3);
   color: #00e0ff;
   font-family: 'Inter', sans-serif;

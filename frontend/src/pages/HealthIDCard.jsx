@@ -24,15 +24,21 @@ extend({ MeshLineGeometry, MeshLineMaterial });
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-function getBadge(improved, declined, hazard) {
+function getBadge(improved, declined, hazard, activeDays = 0) {
   if (hazard >= 1) return { label: 'Hazard', emoji: '☢️', color: '#ff1744', glow: '#d50000', improved };
   if (declined >= 2) return { label: 'Critical', emoji: '🚨', color: '#ff5252', glow: '#ff1744', improved };
   if (declined === 1) return { label: 'At Risk', emoji: '⚠️', color: '#ff9100', glow: '#ff6d00', improved };
   
-  // Only if 0 declined and 0 hazard:
-  if (improved >= 4) return { label: 'Platinum', emoji: '💎', color: '#b2f5f5', glow: '#00e0ff', improved };
-  if (improved >= 2) return { label: 'Gold', emoji: '🥇', color: '#ffe370', glow: '#ffb800', improved };
-  if (improved === 1) return { label: 'Silver', emoji: '🥈', color: '#c8d6e5', glow: '#a0b4c8', improved };
+  // High-tier badges require data maturity (at least 3 days logged)
+  if (activeDays >= 3) {
+    if (improved >= 4) return { label: 'Platinum', emoji: '💎', color: '#b2f5f5', glow: '#00e0ff', improved };
+    if (improved >= 2) return { label: 'Gold', emoji: '🥇', color: '#ffe370', glow: '#ffb800', improved };
+    if (improved === 1) return { label: 'Silver', emoji: '🥈', color: '#c8d6e5', glow: '#a0b4c8', improved };
+  } else if (activeDays > 0) {
+    // New users with some data but not yet enough for Gold/Platinum
+    if (improved >= 1) return { label: 'Silver', emoji: '🥈', color: '#c8d6e5', glow: '#a0b4c8', improved };
+  }
+
   return { label: 'Starter', emoji: '🌱', color: '#69f0ae', glow: '#00c853', improved };
 }
 
@@ -225,9 +231,9 @@ function buildCardTexture({ profile, weeklyTrends, badge, photoUrl, onReady }) {
       ctx.textBaseline = 'middle';
       ctx.fillText(m.icon, 184, centerY);
 
-      // Label
+      // Label (smaller to avoid overlap)
       ctx.fillStyle = '#f1f5f9';
-      ctx.font = 'bold 76px Inter, sans-serif';
+      ctx.font = 'bold 68px Inter, sans-serif';
       ctx.fillText(m.label, 344, centerY);
 
       // Status
@@ -446,6 +452,7 @@ export default function HealthIDCard() {
     weight: 'initial'
   });
   const [badgeInfo, setBadgeInfo] = useState({ label: 'Starter', emoji: '🌱', color: '#69f0ae', glow: '#00c853' });
+  const [activeDaysCount, setActiveDaysCount] = useState(0);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
   const fileInputRef = useRef();
 
@@ -538,6 +545,8 @@ export default function HealthIDCard() {
             const avgSodium = totSodium / activeDays;
             const avgCalories = totCalories / activeDays;
 
+            setActiveDaysCount(activeDays);
+
             // Lactose Trend Logic:
             // If user has lactose condition and avoids it -> improved
             // If they eat it -> declined
@@ -565,7 +574,8 @@ export default function HealthIDCard() {
             const calculateStatus = (val, max) => {
                 if (val > max * 1.5) return 'hazard';
                 if (val > max) return 'declined';
-                if (val < max * 0.7) return 'improved';
+                // Only grant 'improved' if we have enough data to prove a trend (>= 3 days)
+                if (activeDays >= 3 && val < max * 0.7) return 'improved';
                 return 'stable';
             };
 
@@ -602,8 +612,8 @@ export default function HealthIDCard() {
       if (status === 'hazard') hazard++;
     });
 
-    setBadgeInfo(getBadge(improved, declined, hazard));
-  }, [profile, weeklyTrends]);
+    setBadgeInfo(getBadge(improved, declined, hazard, activeDaysCount));
+  }, [profile, weeklyTrends, activeDaysCount]);
 
   useEffect(() => {
     if (!profile) return;
@@ -772,18 +782,13 @@ export default function HealthIDCard() {
           ))}
         </div>
 
-        <div className="hid-section-title" style={{ marginTop: '0.5rem' }}>Profile Details</div>
-        <div className="hid-tiles">
-          <div className="hid-tile"><span className="hid-tile-icon">🎯</span><span className="hid-tile-val">{goalLabel}</span></div>
-          <div className="hid-tile"><span className="hid-tile-icon">🏃</span><span className="hid-tile-val">{profile.activityLevel || '—'}</span></div>
-          <div className="hid-tile"><span className="hid-tile-icon">🥗</span><span className="hid-tile-val">{profile.dietType || '—'}</span></div>
-          <div className="hid-tile"><span className="hid-tile-icon">🌾</span><span className="hid-tile-val">Gluten: {profile.gluten || 'None'}</span></div>
+        {/* Download row centered */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem' }}>
+          <button className="hid-download-btn" onClick={handleDownload}>
+            <span className="hid-download-icon">📥</span>
+            Download Health ID
+          </button>
         </div>
-
-        <button className="hid-download-btn" onClick={handleDownload}>
-          <span className="hid-download-icon">📥</span>
-          Download Health ID
-        </button>
 
         <div className="hid-baseline-note" style={{ marginTop: '0.5rem' }}>
           This card represents your <strong>real-time health status</strong>. Share it with medical professionals to provide a quick overview of your dietary trends.
