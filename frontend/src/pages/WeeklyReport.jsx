@@ -212,67 +212,80 @@ export default function WeeklyReport() {
         return () => clearInterval(intervalId);
     }, [currentUser]);
 
-    // Derived Analytics Logic (Moved from Dashboard)
+    // Derived Analytics Logic
     useEffect(() => {
         if (!weeklyEntries.length) return;
 
-        const pos = new Set();
-        const neg = new Set();
-        const neu = new Set();
+        // Use a Map to track the WORST (highest) healthLevel seen for each food.
+        // This ensures each food ends up in exactly ONE category (no duplicates across lists).
+        const foodWorstLevel = new Map(); // foodName -> worst numeric level (0–4)
 
         weeklyEntries.forEach(entry => {
             if (!entry || !entry.foodName) return;
             const name = entry.foodName;
 
-            // Use the backend-provided healthLevel if available (already accounts for user risk)
+            let level;
+
             if (entry.healthLevel !== undefined && entry.healthLevel !== null) {
-                const level = Number(entry.healthLevel);
-                if (level <= 1) pos.add(name);
-                else if (level >= 3) neg.add(name);
-                else neu.add(name);
+                // Use the backend-provided healthLevel (already accounts for user risk profile)
+                level = Number(entry.healthLevel);
             } else {
-                // Heuristic Fallback for historical data (missing healthLevel)
-                const sugarRaw = entry.sugar || entry.fullNutrients?.sugar;
-                const sodiumRaw = entry.sodium || entry.fullNutrients?.sodium;
-                const fatRaw = entry.fat || entry.fullNutrients?.fat;
+                // Heuristic fallback for historical entries that are missing healthLevel
+                const sugar = Number(entry.sugar || entry.fullNutrients?.sugar || 0);
+                const sodium = Number(entry.sodium || entry.fullNutrients?.sodium || 0);
+                const fat = Number(entry.fat || entry.fullNutrients?.fat || 0);
 
-                const sugar = Number(sugarRaw || 0);
-                const sodium = Number(sodiumRaw || 0);
-                const fat = Number(fatRaw || 0);
-
-                const hasDiabetes = userPrefs?.diabetes === "High" || userPrefs?.diabetes === "Medium" || userPrefs?.diabetesRisk === 'yes';
-                const hasHypertension = userPrefs?.hypertension === "High" || userPrefs?.hypertension === "Medium" || userPrefs?.hypertension === 'yes';
-                const hasCholesterol = userPrefs?.cholesterol === "High" || userPrefs?.cholesterol === "Medium" || userPrefs?.cholesterolSensitivity === 'yes';
+                const hasDiabetes = userPrefs?.diabetes === "High" || userPrefs?.diabetes === "Medium";
+                const hasHypertension = userPrefs?.hypertension === "High" || userPrefs?.hypertension === "Medium";
+                const hasCholesterol = userPrefs?.cholesterol === "High" || userPrefs?.cholesterol === "Medium";
 
                 let isNeg = false;
                 let isPos = false;
 
-                // Risk-based checks (Historical logic)
+                // Risk-condition-aware checks
                 if (hasDiabetes && sugar > 10) isNeg = true;
-                if (hasHypertension && sodium > 500) isNeg = true;
-                if (hasCholesterol && fat > 15) isNeg = true;
+                if (hasHypertension && sodium > 400) isNeg = true;
+                if (hasCholesterol && fat > 10) isNeg = true;
 
-                // Universal fallbacks
+                // Universal thresholds (tightened to catch clearly unhealthy foods)
                 if (!isNeg) {
-                    if (sugar > 25 || sodium > 800 || fat > 25) isNeg = true;
-                    // Only mark as positive if we HAVE data and it's actually healthy
-                    else if ((sugarRaw !== undefined || sodiumRaw !== undefined || fatRaw !== undefined) &&
-                        sugar < 5 && sodium < 140 && fat < 5) isPos = true;
+                    if (sugar > 20 || sodium > 600 || fat > 20) {
+                        isNeg = true;
+                    } else if (sugar < 5 && sodium < 140 && fat < 5) {
+                        isPos = true;
+                    }
                 }
 
-                if (isNeg) neg.add(name);
-                else if (isPos) pos.add(name);
-                else neu.add(name);
+                // Map to a numeric level: 0=positive, 2=neutral, 4=negative
+                level = isNeg ? 4 : isPos ? 0 : 2;
+            }
+
+            // Keep the worst level seen for this food across all logged entries
+            const currentWorst = foodWorstLevel.get(name) ?? -1;
+            if (level > currentWorst) {
+                foodWorstLevel.set(name, level);
             }
         });
 
+        // Classify each food exactly once based on its worst level
+        const pos = [];
+        const neg = [];
+        const neu = [];
+
+        foodWorstLevel.forEach((level, name) => {
+            if (level <= 1) pos.push(name);
+            else if (level >= 3) neg.push(name);
+            else neu.push(name);
+        });
+
         setHealthImpactLists({
-            positive: Array.from(pos).slice(0, 8),
-            negative: Array.from(neg).slice(0, 8),
-            neutral: Array.from(neu).slice(0, 8)
+            positive: pos.slice(0, 8),
+            negative: neg.slice(0, 8),
+            neutral: neu.slice(0, 8),
         });
 
     }, [weeklyEntries, userPrefs]);
+
 
 
     useEffect(() => {

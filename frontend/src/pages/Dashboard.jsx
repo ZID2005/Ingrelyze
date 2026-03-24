@@ -35,6 +35,7 @@ export default function Dashboard() {
     const [latestResult, setLatestResult] = useState(null);
     const [latestNutrients, setLatestNutrients] = useState(null);
     const [latestFoodName, setLatestFoodName] = useState('');
+    const [latestQuantity, setLatestQuantity] = useState(1); // Locked in after analysis
     const [ringOffset, setRingOffset] = useState(2 * Math.PI * 62);
 
     // Search & UI State
@@ -503,6 +504,7 @@ export default function Dashboard() {
                 setLatestNutrients(res.data.analysis);
                 setLatestResult(res.data.rating);
                 setLatestFoodName(res.data.savedEntry?.foodName || searchTerm);
+                setLatestQuantity(submittedQty); // Lock in the analyzed quantity
                 setSearchTerm(""); // Clear input on success
                 setQuantity(1); // Reset quantity on success
 
@@ -1110,7 +1112,7 @@ export default function Dashboard() {
                                                     textOverflow: 'ellipsis',
                                                     whiteSpace: 'nowrap',
                                                 }}>
-                                                    {latestFoodName} {quantity > 1 && <span style={{ opacity: 0.7, marginLeft: '4px' }}>(x{quantity})</span>}
+                                                    {latestFoodName} {latestQuantity > 1 && <span style={{ opacity: 0.7, marginLeft: '4px' }}>(x{latestQuantity})</span>}
                                                 </span>
                                             </div>
                                         )}
