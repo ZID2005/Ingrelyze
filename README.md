@@ -39,10 +39,6 @@ Ingrelyze/
 Create a ".env" file in the backend folder:
 
 
-GEMINI_API_KEY=AIzaSyBZyr9iOKbSYyi9uJvlM1wgVwJAyFciRt4
-GROQ_API_KEY=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
-FIREBASE_API_KEY=AIzaSyCH7v78zYJ9l339_LEIDGqC6Z3BvWVi_Ew
-VITE_API_URL=https://ingrelyze.onrender.com
 
 ---
 
