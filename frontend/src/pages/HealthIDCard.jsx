@@ -528,14 +528,15 @@ export default function HealthIDCard() {
 
           const activeDays = Object.values(dailyMap).filter(d => d.calories > 0).length;
           if (activeDays >= 1) {
-            let totSugar = 0, totFat = 0, totSodium = 0, riskyLactoseDays = 0;
+            let totSugar = 0, totFat = 0, totSodium = 0, totCalories = 0, riskyLactoseDays = 0;
             Object.values(dailyMap).forEach(d => {
-               totSugar += d.sugar; totFat += d.fat; totSodium += d.sodium;
+               totSugar += d.sugar; totFat += d.fat; totSodium += d.sodium; totCalories += d.calories;
                if (d.lactoseRisky) riskyLactoseDays++;
             });
             const avgSugar = totSugar / activeDays;
             const avgFat = totFat / activeDays;
             const avgSodium = totSodium / activeDays;
+            const avgCalories = totCalories / activeDays;
 
             // Lactose Trend Logic:
             // If user has lactose condition and avoids it -> improved
@@ -619,12 +620,12 @@ export default function HealthIDCard() {
   }, [profile, weeklyTrends, badgeInfo, photoUrl]);
 
   const handleDownload = useCallback(() => {
-    if (!cardCanvas) return;
+    if (!cardCanvas || !profile) return;
     const link = document.createElement('a');
     link.download = `HealthID_${(profile.name || 'User').replace(/\s+/g, '_')}.jpg`;
     link.href = cardCanvas.toDataURL('image/jpeg', 0.92);
     link.click();
-  }, [cardCanvas, profile.name]);
+  }, [cardCanvas, profile?.name]);
 
   const handlePhotoUpload = useCallback((e) => {
     const file = e.target.files?.[0];
