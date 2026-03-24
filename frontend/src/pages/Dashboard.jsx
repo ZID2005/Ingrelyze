@@ -140,8 +140,8 @@ export default function Dashboard() {
         const lastAvg = getAvgScore(lastWeekEntries);
 
         if (lastAvg === null || lastAvg === 0) {
-            // If no data last week, but we have data this week, we are "performing better" relative to starting
-            return { improvement: 12, status: 'positive' }; // Default 12% as per user reference if starting out
+            // First week or no baseline - return a neutral state
+            return { improvement: 0, status: 'first_week' };
         }
 
         const improvement = Math.round(((currentAvg - lastAvg) / lastAvg) * 100);
@@ -934,7 +934,11 @@ export default function Dashboard() {
                                         fontWeight: 500 
                                     }}
                                 >
-                                    Your metabolic health is <strong style={{ color: healthStats.status === 'positive' ? '#10b981' : '#ef4444', fontWeight: 700 }}>{healthStats.improvement}% {healthStats.status === 'positive' ? 'healthier' : 'lower'}</strong> than last week.
+                                    {healthStats.status === 'first_week' ? (
+                                        "Analyzing your first week of dietary trends..."
+                                    ) : (
+                                        <>Your metabolic health is <strong style={{ color: healthStats.status === 'positive' ? '#10b981' : '#ef4444', fontWeight: 700 }}>{healthStats.improvement}% {healthStats.status === 'positive' ? 'healthier' : 'lower'}</strong> than last week.</>
+                                    )}
                                 </motion.p>
                             </div>
 

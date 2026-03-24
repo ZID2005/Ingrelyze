@@ -67,7 +67,8 @@ function drawRoundRect(ctx, x, y, w, h, r) {
 }
 
 function buildCardTexture({ profile, weeklyTrends, badge, photoUrl, onReady }) {
-  const W = 1024, H = 1536;
+  // Double the resolution for crystal clear text (2048 x 3072)
+  const W = 2048, H = 3072;
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
@@ -75,62 +76,63 @@ function buildCardTexture({ profile, weeklyTrends, badge, photoUrl, onReady }) {
   function draw(avatarImg) {
     // ── Background ──
     const bg = ctx.createLinearGradient(0, 0, W, H);
-    bg.addColorStop(0, '#080d1c');
+    bg.addColorStop(0, '#060a16');
     bg.addColorStop(0.5, '#0a0f1e');
-    bg.addColorStop(1, '#0f0a1e');
+    bg.addColorStop(1, '#0c0818');
     ctx.fillStyle = bg;
-    drawRoundRect(ctx, 0, 0, W, H, 56);
+    drawRoundRect(ctx, 0, 0, W, H, 112);
     ctx.fill();
 
-    // ── Cyan border glow ──
+    // ── High-end Cyber Border ──
     ctx.save();
-    drawRoundRect(ctx, 4, 4, W - 8, H - 8, 52);
-    ctx.strokeStyle = 'rgba(0,224,255,0.55)';
-    ctx.lineWidth = 6;
+    drawRoundRect(ctx, 8, 8, W - 16, H - 16, 104);
+    ctx.strokeStyle = 'rgba(0,224,255,0.6)';
+    ctx.lineWidth = 12;
     ctx.shadowColor = '#00e0ff';
-    ctx.shadowBlur = 36;
+    ctx.shadowBlur = 72;
     ctx.stroke();
     ctx.restore();
 
     // ── Top accent stripe ──
-    const stripe = ctx.createLinearGradient(0, 0, W, 0);
-    stripe.addColorStop(0, 'rgba(0,224,255,0.08)');
-    stripe.addColorStop(0.5, 'rgba(0,224,255,0.22)');
-    stripe.addColorStop(1, 'rgba(124,58,237,0.1)');
+    const stripe = ctx.createLinearGradient(0, 10, W, 10);
+    stripe.addColorStop(0, 'rgba(0,224,255,0.12)');
+    stripe.addColorStop(0.5, 'rgba(0,224,255,0.25)');
+    stripe.addColorStop(1, 'rgba(124,58,237,0.15)');
     ctx.fillStyle = stripe;
-    ctx.fillRect(0, 0, W, 140);
+    ctx.fillRect(0, 0, W, 280);
 
     // ── App name ──
     ctx.fillStyle = '#00e0ff';
-    ctx.font = 'bold 44px Inter, sans-serif';
-    ctx.letterSpacing = '8px';
+    ctx.font = 'bold 88px Inter, sans-serif';
+    ctx.letterSpacing = '16px';
     ctx.textAlign = 'left';
-    ctx.textBaseline = 'alphabetic';
-    ctx.fillText('INGRELYZE', 56, 80);
+    ctx.textBaseline = 'middle';
+    ctx.fillText('INGRELYZE', 112, 140);
 
-    // ── Badge chip ──
+    // ── Badge chip (High Res) ──
     const chipTxt = `${badge.emoji} ${badge.label}`;
-    ctx.font = 'bold 36px Inter, sans-serif';
-    const chipW = ctx.measureText(chipTxt).width + 52;
-    const chipX = W - chipW - 40;
-    ctx.fillStyle = badge.glow + '28';
-    drawRoundRect(ctx, chipX, 36, chipW, 64, 20);
+    ctx.font = 'bold 72px Inter, sans-serif';
+    const chipW = ctx.measureText(chipTxt).width + 104;
+    const chipX = W - chipW - 80;
+    ctx.fillStyle = badge.glow + '33';
+    drawRoundRect(ctx, chipX, 80, chipW, 128, 40);
     ctx.fill();
     ctx.strokeStyle = badge.color;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 6;
     ctx.stroke();
     ctx.fillStyle = badge.color;
-    ctx.fillText(chipTxt, chipX + 26, 78);
+    ctx.textAlign = 'center';
+    ctx.fillText(chipTxt, chipX + chipW/2, 144);
 
     // ── Avatar circle ──
-    const avatarCX = W / 2, avatarCY = 320, avatarR = 148;
+    const avatarCX = W / 2, avatarCY = 640, avatarR = 296;
     ctx.save();
     ctx.beginPath();
-    ctx.arc(avatarCX, avatarCY, avatarR + 12, 0, Math.PI * 2);
+    ctx.arc(avatarCX, avatarCY, avatarR + 24, 0, Math.PI * 2);
     ctx.strokeStyle = '#00e0ff';
-    ctx.lineWidth = 6;
+    ctx.lineWidth = 12;
     ctx.shadowColor = '#00e0ff';
-    ctx.shadowBlur = 40;
+    ctx.shadowBlur = 80;
     ctx.stroke();
     ctx.restore();
 
@@ -141,114 +143,125 @@ function buildCardTexture({ profile, weeklyTrends, badge, photoUrl, onReady }) {
     if (avatarImg) {
       ctx.drawImage(avatarImg, avatarCX - avatarR, avatarCY - avatarR, avatarR * 2, avatarR * 2);
     } else {
-      const grad = ctx.createRadialGradient(avatarCX - 40, avatarCY - 40, 20, avatarCX, avatarCY, avatarR);
+      const grad = ctx.createRadialGradient(avatarCX - 80, avatarCY - 80, 40, avatarCX, avatarCY, avatarR);
       grad.addColorStop(0, '#1e40af');
       grad.addColorStop(1, '#7c3aed');
       ctx.fillStyle = grad;
       ctx.fillRect(avatarCX - avatarR, avatarCY - avatarR, avatarR * 2, avatarR * 2);
-      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.fillStyle = 'rgba(255,255,255,1)';
       ctx.font = `bold ${avatarR}px Inter, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(profile.name?.[0]?.toUpperCase() || '?', avatarCX, avatarCY + 8);
+      ctx.fillText(profile.name?.[0]?.toUpperCase() || '?', avatarCX, avatarCY + 16);
     }
     ctx.restore();
 
-    // ── Name ──
+    // ── Name & Metadata ──
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 72px Inter, sans-serif';
-    ctx.fillText(profile.name || 'User', W / 2, 540);
+    ctx.font = 'bold 144px Inter, sans-serif';
+    ctx.fillText(profile.name || 'User', W / 2, 1080);
 
-    // ── Age / Gender ──
-    ctx.fillStyle = 'rgba(180,195,220,0.75)';
-    ctx.font = '44px Inter, sans-serif';
+    ctx.fillStyle = 'rgba(180,210,240,0.8)';
+    ctx.font = '88px Inter, sans-serif';
     const metaParts = [];
     if (profile.age) metaParts.push(`Age ${profile.age}`);
     if (profile.gender) metaParts.push(profile.gender);
-    ctx.fillText(metaParts.join(' · '), W / 2, 608);
+    ctx.fillText(metaParts.join(' · '), W / 2, 1216);
 
     // ── Divider ──
     ctx.save();
-    const divGrad = ctx.createLinearGradient(80, 0, W - 80, 0);
+    const divGrad = ctx.createLinearGradient(160, 0, W - 160, 0);
     divGrad.addColorStop(0, 'transparent');
-    divGrad.addColorStop(0.5, 'rgba(0,224,255,0.3)');
+    divGrad.addColorStop(0.5, 'rgba(0,224,255,0.4)');
     divGrad.addColorStop(1, 'transparent');
     ctx.strokeStyle = divGrad;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.moveTo(80, 650); ctx.lineTo(W - 80, 650);
+    ctx.moveTo(160, 1300); ctx.lineTo(W - 160, 1300);
     ctx.stroke();
     ctx.restore();
 
-    // ── Metrics ──
-    const metricStartY = 660;
-    const metricH = 156;
+    // ── Metrics Row ──
+    const metricStartY = 1360;
+    const metricH = 312; // Double the height logic
     METRICS.forEach((m, i) => {
       const y = metricStartY + i * metricH;
       const status = weeklyTrends?.[m.key] || 'stable';
 
-      const rowBg = ctx.createLinearGradient(56, y, W - 56, y);
+      // Row Background
+      const rowBg = ctx.createLinearGradient(112, y, W - 112, y);
       if (status === 'improved') {
-        rowBg.addColorStop(0, 'rgba(105,240,174,0.06)');
-        rowBg.addColorStop(1, 'rgba(105,240,174,0.02)');
+        rowBg.addColorStop(0, 'rgba(74, 222, 128, 0.12)');
+        rowBg.addColorStop(1, 'rgba(74, 222, 128, 0.04)');
       } else if (status === 'declined') {
-        rowBg.addColorStop(0, 'rgba(255,112,67,0.08)');
-        rowBg.addColorStop(1, 'rgba(255,112,67,0.02)');
+        rowBg.addColorStop(0, 'rgba(251, 146, 60, 0.14)');
+        rowBg.addColorStop(1, 'rgba(251, 146, 60, 0.04)');
       } else if (status === 'hazard') {
-        rowBg.addColorStop(0, 'rgba(239, 68, 68, 0.12)');
-        rowBg.addColorStop(1, 'rgba(239, 68, 68, 0.03)');
+        rowBg.addColorStop(0, 'rgba(239, 68, 68, 0.22)');
+        rowBg.addColorStop(1, 'rgba(239, 68, 68, 0.06)');
       } else {
-        rowBg.addColorStop(0, 'rgba(255,255,255,0.04)');
+        rowBg.addColorStop(0, 'rgba(255,255,255,0.06)');
         rowBg.addColorStop(1, 'rgba(255,255,255,0.02)');
       }
       ctx.fillStyle = rowBg;
-      drawRoundRect(ctx, 56, y, W - 112, metricH - 20, 24);
+      drawRoundRect(ctx, 112, y, W - 224, metricH - 40, 48);
       ctx.fill();
 
-      ctx.strokeStyle = status === 'improved' ? 'rgba(105,240,174,0.2)'
-        : (status === 'declined' || status === 'hazard') ? 'rgba(255,112,67,0.3)'
-        : 'rgba(255,255,255,0.06)';
-      ctx.lineWidth = 2;
+      // Row Border
+      ctx.strokeStyle = status === 'improved' ? 'rgba(74, 222, 128, 0.35)'
+        : (status === 'declined' || status === 'hazard') ? 'rgba(251, 146, 60, 0.45)'
+        : 'rgba(255,255,255,0.12)';
+      ctx.lineWidth = 4;
       ctx.stroke();
 
-      ctx.font = '48px serif';
+      // Perfect Vertical Centering for Row Content
+      const centerY = y + (metricH - 40) / 2;
+      
+      // Icon
+      ctx.font = '96px serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillText(m.icon, 92, y + (metricH - 22) / 2);
+      ctx.fillText(m.icon, 184, centerY);
 
-      ctx.fillStyle = 'rgba(220,230,245,0.85)';
-      ctx.font = '700 38px Inter, sans-serif';
-      ctx.fillText(m.label, 172, y + 44);
+      // Label
+      ctx.fillStyle = '#f1f5f9';
+      ctx.font = 'bold 76px Inter, sans-serif';
+      ctx.fillText(m.label, 344, centerY);
 
+      // Status
       ctx.textAlign = 'right';
       const displayTxt = status === 'improved' ? 'Improved ▲' 
                        : status === 'hazard'   ? 'Hazard ☣'
                        : status === 'declined' ? 'Worsened ▼' 
+                       : status === 'initial'  ? 'Awaiting Data —'
                        : 'Stable —';
                        
-      ctx.fillStyle = status === 'improved' ? '#69f0ae' 
+      ctx.fillStyle = status === 'improved' ? '#4ade80' 
                     : status === 'hazard'   ? '#ff1744'
-                    : status === 'declined' ? '#ff7043' 
-                    : 'rgba(255,255,255,0.6)';
+                    : status === 'declined' ? '#fb923c' 
+                    : '#94a3b8';
                     
-      ctx.font = `bold 36px Inter, sans-serif`;
-      ctx.fillText(displayTxt, W - 92, y + (metricH - 22) / 2);
+      ctx.font = `bold 72px Inter, sans-serif`;
+      ctx.fillText(displayTxt, W - 184, centerY);
     });
 
     // ── Footer ──
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = 'rgba(100,120,150,0.5)';
-    ctx.font = '32px Inter, sans-serif';
-    ctx.fillText(`Health ID · Ingrelyze · ${new Date().getFullYear()}`, W / 2, H - 44);
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(148,163,184,0.6)';
+    ctx.font = '64px Inter, sans-serif';
+    ctx.fillText(`Health ID · Ingrelyze · ${new Date().getFullYear()}`, W / 2, H - 96);
 
-    onReady(new THREE.CanvasTexture(canvas));
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.anisotropy = 16;
+    onReady(texture, canvas);
   }
 
   if (photoUrl) {
     const img = new Image();
+    img.crossOrigin = "anonymous";
     img.onload = () => draw(img);
     img.onerror = () => draw(null);
     img.src = photoUrl;
@@ -410,6 +423,7 @@ function MetricRow({ metric, status }) {
         {status === 'declined' && <span className="hid-trend hid-trend-down" style={{fontSize: '0.85rem'}}>▼ Worsened</span>}
         {status === 'hazard' && <span className="hid-trend hid-trend-hazard" style={{fontSize: '0.85rem'}}>☣ Hazard</span>}
         {status === 'stable' && <span className="hid-trend hid-trend-stable" style={{fontSize: '0.85rem'}}>— Stable</span>}
+        {status === 'initial' && <span className="hid-trend hid-trend-stable" style={{fontSize: '0.85rem', opacity: 0.6}}>— Awaiting Data</span>}
       </div>
     </div>
   );
@@ -423,12 +437,13 @@ export default function HealthIDCard() {
   const [loading, setLoading] = useState(true);
   const [photoUrl, setPhotoUrl] = useState(null);
   const [cardTexture, setCardTexture] = useState(null);
+  const [cardCanvas, setCardCanvas] = useState(null);
   const [weeklyTrends, setWeeklyTrends] = useState({
-    diabetes: 'stable',
-    hypertension: 'stable',
-    cholesterol: 'stable',
-    lactose: 'stable',
-    weight: 'stable'
+    diabetes: 'initial',
+    hypertension: 'initial',
+    cholesterol: 'initial',
+    lactose: 'initial',
+    weight: 'initial'
   });
   const [badgeInfo, setBadgeInfo] = useState({ label: 'Starter', emoji: '🌱', color: '#69f0ae', glow: '#00c853' });
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
@@ -591,8 +606,25 @@ export default function HealthIDCard() {
 
   useEffect(() => {
     if (!profile) return;
-    buildCardTexture({ profile, weeklyTrends, badge: badgeInfo, photoUrl, onReady: setCardTexture });
+    buildCardTexture({ 
+      profile, 
+      weeklyTrends, 
+      badge: badgeInfo, 
+      photoUrl, 
+      onReady: (tex, canvas) => {
+        setCardTexture(tex);
+        setCardCanvas(canvas);
+      } 
+    });
   }, [profile, weeklyTrends, badgeInfo, photoUrl]);
+
+  const handleDownload = useCallback(() => {
+    if (!cardCanvas) return;
+    const link = document.createElement('a');
+    link.download = `HealthID_${(profile.name || 'User').replace(/\s+/g, '_')}.jpg`;
+    link.href = cardCanvas.toDataURL('image/jpeg', 0.92);
+    link.click();
+  }, [cardCanvas, profile.name]);
 
   const handlePhotoUpload = useCallback((e) => {
     const file = e.target.files?.[0];
@@ -665,8 +697,8 @@ export default function HealthIDCard() {
         <div className="hid-canvas-label">Drag the card to swing it!</div>
         <Canvas
           camera={{ position: [0, 0, 14], fov: 28 }}
-          dpr={[1, isMobile ? 2 : 3]}
-          gl={{ alpha: true, antialias: true }}
+          dpr={[1, isMobile ? 3 : 4]}
+          gl={{ alpha: true, antialias: true, preserveDrawingBuffer: true }}
           onCreated={({ gl, camera }) => {
             gl.setClearColor(new THREE.Color(0), 0);
             camera.lookAt(0, 0.5, 0);
@@ -739,12 +771,21 @@ export default function HealthIDCard() {
           ))}
         </div>
 
-        <div className="hid-section-title" style={{ marginTop: '0.75rem' }}>Profile Details</div>
+        <div className="hid-section-title" style={{ marginTop: '0.5rem' }}>Profile Details</div>
         <div className="hid-tiles">
           <div className="hid-tile"><span className="hid-tile-icon">🎯</span><span className="hid-tile-val">{goalLabel}</span></div>
           <div className="hid-tile"><span className="hid-tile-icon">🏃</span><span className="hid-tile-val">{profile.activityLevel || '—'}</span></div>
           <div className="hid-tile"><span className="hid-tile-icon">🥗</span><span className="hid-tile-val">{profile.dietType || '—'}</span></div>
           <div className="hid-tile"><span className="hid-tile-icon">🌾</span><span className="hid-tile-val">Gluten: {profile.gluten || 'None'}</span></div>
+        </div>
+
+        <button className="hid-download-btn" onClick={handleDownload}>
+          <span className="hid-download-icon">📥</span>
+          Download Health ID
+        </button>
+
+        <div className="hid-baseline-note" style={{ marginTop: '0.5rem' }}>
+          This card represents your <strong>real-time health status</strong>. Share it with medical professionals to provide a quick overview of your dietary trends.
         </div>
       </div>
     </div>
