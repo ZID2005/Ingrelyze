@@ -29,13 +29,8 @@ def extract_text_from_pdf(pdf_path):
 
 from model import HealthClassifier
 from rules import RuleEngine
-from config import DATA_PATH, HEALTH_LEVEL_MAP, FEATURES, GEMINI_API_KEY, GROQ_API_KEY
-import google.generativeai as genai
+from config import DATA_PATH, HEALTH_LEVEL_MAP, FEATURES, GROQ_API_KEY
 from groq import Groq
-
-# Configure Gemini (Keeping for backward compatibility or fallback)
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
 
 # Configure Groq
 groq_client = None
