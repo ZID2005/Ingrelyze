@@ -6,6 +6,8 @@ frontend/*.local
 frontend/lint_output.txt
 frontend/build_output.log
 frontend/debug_network.js
+frontend/test_analyze.js
+package-lock.json
 
 # --- Backend (Python) ---
 backend/__pycache__/
@@ -36,12 +38,16 @@ backend/MANIFEST
 backend/uploads/
 backend/analyze_crash.txt
 backend/backend_ai_crash.txt
+backend/crash_debug.txt
 backend/model.joblib
+backend/test_*.py
 backend/*.json
 backend/*.txt
 !backend/requirements.txt
 !backend/config.py
 !backend/api.py
+!backend/rules.py
+!backend/model.py
 
 # --- Environment Variables (CRITICAL) ---
 .env
@@ -51,6 +57,9 @@ backend/*.txt
 .env.production.local
 backend/.env
 frontend/.env
+
+# --- Data Files ---
+data/
 
 # --- Virtual Environments (Root level if any) ---
 .venv/
@@ -74,6 +83,7 @@ step2_clean_select.py
 step3_health_scoring.py
 test_nlp_logic.js
 verify_output.txt
+debug_network.js
 
 # --- Editor and OS ---
 .vscode/
